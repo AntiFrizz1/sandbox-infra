@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# sandbox-deploy — локальный помощник для sandbox-инфраструктуры.
+#
+# Создаёт (идемпотентно) bare-репозиторий на VPS через один SSH-вызов
+# и настраивает git remote в текущей папке — без ручного логина по SSH.
+#
+# Настройка хоста берётся из переменных окружения (см. ниже) либо
+# из ~/.config/sandbox-deploy/config, если файл существует.
+#
+# Использование:
+#   sandbox-deploy                # имя проекта = имя текущей папки
+#   sandbox-deploy myapp          # явное имя проекта
+#   sandbox-deploy myapp --push   # создать + сразу запушить
+set -euo pipefail
+
+CONFIG_FILE="$HOME/.config/sandbox-deploy/config"
+if [[ -f "$CONFIG_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$CONFIG_FILE"
+fi
+
+SANDBOX_HOST="${SANDBOX_HOST:-}"
+REMOTE_NAME="${SANDBOX_REMOTE_NAME:-prod}"
+
+if [[ -z "$SANDBOX_HOST" ]]; then
+    echo "!! SANDBOX_HOST не задан." >&2
+    echo "   Задай его через переменную окружения или создай $CONFIG_FILE:" >&2
+    echo "     mkdir -p ~/.config/sandbox-deploy" >&2
+    echo "     echo 'SANDBOX_HOST=deploy@sandbox.example.com' > $CONFIG_FILE" >&2
+    exit 1
+fi
+
+APP_NAME="${1:-}"
+AUTO_PUSH=false
+
+for arg in "$@"; do
+    [[ "$arg" == "--push" ]] && AUTO_PUSH=true
+done
+
+if [[ -z "$APP_NAME" || "$APP_NAME" == "--push" ]]; then
+    APP_NAME="$(basename "$(pwd)")"
+fi
+
+read -rp "Имя проекта на sandbox [$APP_NAME]: " INPUT_NAME
+APP_NAME="${INPUT_NAME:-$APP_NAME}"
+
+# --- git-репозиторий локально ---
+if [[ ! -d .git ]]; then
+    echo "==> Локальной git-репы нет, инициализирую"
+    git init -q
+    git branch -M main
+fi
+
+CURRENT_BRANCH="$(git branch --show-current)"
+if [[ "$CURRENT_BRANCH" != "main" ]]; then
+    echo "!! Текущая ветка '$CURRENT_BRANCH', но deploy-хук на сервере ждёт 'main'."
+    read -rp "   Переименовать в main? [Y/n] " ans
+    if [[ "${ans:-y}" =~ ^[Yy]$ ]]; then
+        git branch -M main
+    fi
+fi
+
+# --- создание/проверка bare-репозитория на VPS одним SSH-вызовом ---
+echo "==> Проверяю проект '$APP_NAME' на $SANDBOX_HOST"
+ssh "$SANDBOX_HOST" bash -s -- "$APP_NAME" <<'REMOTE_SCRIPT'
+set -euo pipefail
+NAME="$1"
+REPO="/srv/git/$NAME.git"
+if [[ -d "$REPO" ]]; then
+    echo "   репозиторий уже существует, пропускаю создание"
+else
+    /srv/deploy/new-app.sh "$NAME" >/dev/null
+    echo "   создан новый bare-репозиторий"
+fi
+REMOTE_SCRIPT
+
+# --- git remote локально ---
+REMOTE_URL="ssh://${SANDBOX_HOST}/srv/git/${APP_NAME}.git"
+
+if git remote get-url "$REMOTE_NAME" &>/dev/null; then
+    git remote set-url "$REMOTE_NAME" "$REMOTE_URL"
+    echo "==> Remote '$REMOTE_NAME' обновлён: $REMOTE_URL"
+else
+    git remote add "$REMOTE_NAME" "$REMOTE_URL"
+    echo "==> Remote '$REMOTE_NAME' добавлен: $REMOTE_URL"
+fi
+
+# --- напоминание про лейблы, если это Docker-проект ---
+if [[ -f "docker-compose.yml" || -f "Dockerfile" ]]; then
+    if [[ -f "docker-compose.yml" ]] && ! grep -q "caddy:" docker-compose.yml; then
+        echo ""
+        echo "!! Это Docker-проект, но лейблов caddy: в docker-compose.yml не нашёл."
+        echo "   Добавь для внешнего доступа что-то вроде:"
+        echo "     labels:"
+        echo "       caddy: $APP_NAME.sandbox.<домен>"
+        echo "       caddy.reverse_proxy: \"{{upstreams <порт>}}\""
+    fi
+fi
+
+# --- пуш ---
+if [[ "$AUTO_PUSH" == false ]]; then
+    read -rp $'\nЗапушить прямо сейчас? [Y/n] ' ans
+    [[ "${ans:-y}" =~ ^[Yy]$ ]] && AUTO_PUSH=true
+fi
+
+if [[ "$AUTO_PUSH" == true ]]; then
+    if [[ -z "$(git status --porcelain)" && -n "$(git log -1 2>/dev/null || true)" ]]; then
+        git commit --allow-empty -m "deploy" -q
+    else
+        git add -A
+        git commit -m "deploy" -q || true
+    fi
+    git push "$REMOTE_NAME" main
+else
+    echo "Готово. Запушить позже: git push $REMOTE_NAME main"
+fi

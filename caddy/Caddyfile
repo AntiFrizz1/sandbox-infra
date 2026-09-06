@@ -1,0 +1,26 @@
+{
+    email you@example.com
+    cert_issuer acme
+}
+
+# Статические сайты и SPA-сборки (кейсы 1 и 2 без своего backend)
+# лежат в /srv/sites/<app-name>/ и раздаются напрямую отсюда.
+# Wildcard-сертификат требует DNS-01 — указываем его только здесь.
+*.sandbox.example.com {
+    tls {
+        dns timeweb {env.TIMEWEB_API_TOKEN}
+    }
+    @app header_regexp app Host ^([a-z0-9-]+)\.sandbox\.example\.com$
+    root @app /srv/sites/{re.app.1}
+    file_server
+}
+
+# Голый apex-домен — не wildcard, поэтому спокойно проходит через
+# обычный HTTP-01 challenge, DNS-провайдер ему не нужен.
+sandbox.example.com {
+    respond "Sandbox root — see project subdomains"
+}
+
+# Docker-контейнеры с лейблами caddy:/caddy.reverse_proxy: тоже получают
+# сертификаты через HTTP-01 автоматически — это конкретные FQDN, не wildcard,
+# так что caddy-docker-proxy не требует никакой доп. настройки DNS.

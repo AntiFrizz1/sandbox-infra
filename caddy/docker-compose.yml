@@ -1,0 +1,25 @@
+services:
+  caddy:
+    image: sandbox-caddy:latest
+    command: caddy docker-proxy --caddyfile-path /etc/caddy/Caddyfile
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - /srv/sites:/srv/sites:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - sandbox_net
+
+networks:
+  sandbox_net:
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:
