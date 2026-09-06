@@ -48,11 +48,13 @@ chown -R deploy:deploy /srv/git /srv/apps /srv/sites /srv/deploy
 # --- 3. Общая docker-сеть ---
 docker network inspect sandbox_net &>/dev/null || docker network create sandbox_net
 
-# --- 4. Deploy-хук и хелпер ---
+# --- 4. Deploy-хук и хелперы ---
 cp "$SCRIPT_DIR/deploy/hook.sh" /srv/deploy/hook.sh
 cp "$SCRIPT_DIR/deploy/new-app.sh" /srv/deploy/new-app.sh
-chmod +x /srv/deploy/hook.sh /srv/deploy/new-app.sh
-chown deploy:deploy /srv/deploy/hook.sh /srv/deploy/new-app.sh
+cp "$SCRIPT_DIR/deploy/stop-app.sh" /srv/deploy/stop-app.sh
+cp "$SCRIPT_DIR/deploy/remove-app.sh" /srv/deploy/remove-app.sh
+chmod +x /srv/deploy/hook.sh /srv/deploy/new-app.sh /srv/deploy/stop-app.sh /srv/deploy/remove-app.sh
+chown deploy:deploy /srv/deploy/hook.sh /srv/deploy/new-app.sh /srv/deploy/stop-app.sh /srv/deploy/remove-app.sh
 
 # --- 5. Caddy ---
 cp "$SCRIPT_DIR/caddy/Caddyfile" /srv/caddy/Caddyfile

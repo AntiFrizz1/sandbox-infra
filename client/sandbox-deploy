@@ -11,6 +11,8 @@
 #   sandbox-deploy                # имя проекта = имя текущей папки
 #   sandbox-deploy myapp          # явное имя проекта
 #   sandbox-deploy myapp --push   # создать + сразу запушить
+#   sandbox-deploy stop [myapp]   # временно остановить (данные сохраняются)
+#   sandbox-deploy remove [myapp] # полностью и необратимо удалить
 set -euo pipefail
 
 CONFIG_FILE="$HOME/.config/sandbox-deploy/config"
@@ -28,6 +30,39 @@ if [[ -z "$SANDBOX_HOST" ]]; then
     echo "     mkdir -p ~/.config/sandbox-deploy" >&2
     echo "     echo 'SANDBOX_HOST=deploy@sandbox.example.com' > $CONFIG_FILE" >&2
     exit 1
+fi
+
+SUBCOMMAND=""
+case "${1:-}" in
+    stop|remove)
+        SUBCOMMAND="$1"
+        shift
+        ;;
+esac
+
+if [[ -n "$SUBCOMMAND" ]]; then
+    APP_NAME="${1:-$(basename "$(pwd)")}"
+
+    if [[ "$SUBCOMMAND" == "stop" ]]; then
+        echo "==> Останавливаю '$APP_NAME' на $SANDBOX_HOST"
+        ssh "$SANDBOX_HOST" bash -s -- "$APP_NAME" <<'REMOTE_SCRIPT'
+set -euo pipefail
+/srv/deploy/stop-app.sh "$1"
+REMOTE_SCRIPT
+    else
+        read -rp "Точно удалить '$APP_NAME' с $SANDBOX_HOST? Это удалит bare-репозиторий, файлы и Docker-данные без возможности восстановления. [y/N] " ans
+        if [[ ! "${ans:-n}" =~ ^[Yy]$ ]]; then
+            echo "Отменено."
+            exit 1
+        fi
+        echo "==> Удаляю '$APP_NAME' на $SANDBOX_HOST"
+        ssh "$SANDBOX_HOST" bash -s -- "$APP_NAME" <<'REMOTE_SCRIPT'
+set -euo pipefail
+/srv/deploy/remove-app.sh "$1" --force
+REMOTE_SCRIPT
+    fi
+
+    exit 0
 fi
 
 APP_NAME="${1:-}"
