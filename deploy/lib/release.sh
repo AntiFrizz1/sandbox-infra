@@ -97,7 +97,15 @@ publish_release() {
     }
 
     validate_release_output "$staging" || { safe_rm_rf "$SANDBOX_SITES_ROOT" "$staging"; return 1; }
-    mv -T "$staging" "$rel" || return 1
+
+    # Имя staging начинается с точки, а prune_releases обходит releases/*
+    # обычным glob'ом — без dotglob такой каталог не удалит уже никто,
+    # поэтому убираем за собой и на этом пути тоже.
+    mv -T "$staging" "$rel" || {
+        safe_rm_rf "$SANDBOX_SITES_ROOT" "$staging"
+        warn "не удалось перенести сборку в $rel"
+        return 1
+    }
 
     # rename(2) поверх существующего симлинка атомарен: читатель видит
     # либо старый релиз, либо новый, но никогда промежуточное состояние.

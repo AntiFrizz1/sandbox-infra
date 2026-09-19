@@ -153,7 +153,10 @@ case "$PROJECT_TYPE" in
             done
             echo "   приложение отвечает"
         fi
-        printf '%s\n' "$NEWREV" > "$STATEDIR/docker-active-sha"
+        # Атомарная подмена, а не запись поверх: status читает этот файл
+        # без замка и не должен застать его пустым между truncate и write.
+        printf '%s\n' "$NEWREV" > "$STATEDIR/.docker-active-sha.$$"
+        mv -T "$STATEDIR/.docker-active-sha.$$" "$STATEDIR/docker-active-sha"
         ;;
 
     static|node)

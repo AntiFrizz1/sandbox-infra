@@ -35,12 +35,15 @@ STATEDIR="$(app_state_dir "$NAME")"
 DEPLOYS="$STATEDIR/deploys.tsv"
 
 [[ -d "$REPO" ]] || die "проект '$NAME' не найден"
-lock_app "$NAME"
-[[ -d "$REPO" ]] || die "проект '$NAME' удалён"
 
+# Замок здесь намеренно не берётся: status читает и ничего не меняет, а
+# ждать его — значит вешать команду на всё время сборки ровно тогда, когда
+# её и запускают, чтобы посмотреть на ход деплоя. Читаемое согласованно и
+# без замка: current переключается через rename(2), deploys.tsv только
+# дописывается, docker-active-sha пишется атомарной подменой.
 CURRENT="$(current_release_sha "$NAME" 2>/dev/null || true)"
 if [[ -f "$STATEDIR/docker-active-sha" ]]; then
-    CURRENT=$(cat "$STATEDIR/docker-active-sha")
+    CURRENT=$(cat "$STATEDIR/docker-active-sha" 2>/dev/null || true)
 fi
 
 # last_record_for <sha> — строка из deploys.tsv для коммита, последняя попытка

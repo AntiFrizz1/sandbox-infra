@@ -65,9 +65,23 @@ require_valid_app_name() {
     exit 1
 }
 
-confirm() {  # confirm <вопрос> — true, если подтверждено
+# confirm <вопрос> — для необратимых действий. Неинтерактивно требует --yes:
+# молча решать за пользователя, удалять ли проект, нельзя.
+confirm() {
     [[ "$ASSUME_YES" == true ]] && return 0
     [[ "$NONINTERACTIVE" != true ]] || die "Требуется явное подтверждение: передай --yes"
+    local ans
+    read -rp "$1 [y/N] " ans
+    [[ "${ans:-n}" =~ ^[Yy]$ ]]
+}
+
+# confirm_optional <вопрос> — для необязательных предложений вроде
+# «запушить прямо сейчас?». Отказ здесь не ошибка, поэтому неинтерактивно
+# это просто «нет», а не аварийный выход: иначе скриптовый init делал бы
+# всю работу и всё равно завершался с ненулевым кодом.
+confirm_optional() {
+    [[ "$ASSUME_YES" == true ]] && return 0
+    [[ "$NONINTERACTIVE" != true ]] || return 1
     local ans
     read -rp "$1 [y/N] " ans
     [[ "${ans:-n}" =~ ^[Yy]$ ]]
@@ -309,7 +323,7 @@ case "$COMMAND" in
         if [[ -z "$(git log -1 2>/dev/null || true)" ]]; then
             echo
             echo "Готово. Сделай первый коммит и запушь: sandbox-deploy push"
-        elif confirm $'\nЗапушить прямо сейчас?'; then
+        elif confirm_optional $'\nЗапушить прямо сейчас?'; then
             push_and_verify "$APP_NAME"
         else
             echo "Готово. Запушить позже: sandbox-deploy push"
