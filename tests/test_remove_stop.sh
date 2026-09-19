@@ -65,9 +65,17 @@ assert_fail   "отвергает имя с backtick"      "$DEPLOY/stop-app.sh"
 echo
 echo "== stop-app.sh: штатная остановка =="
 reset_fixture
+# Релизная раскладка: releases/<sha> + current -> releases/<sha>
+mkdir -p "$SANDBOX_SITES_ROOT/demo/releases/abc123"
+echo "<h1>demo</h1>" > "$SANDBOX_SITES_ROOT/demo/releases/abc123/index.html"
+ln -s releases/abc123 "$SANDBOX_SITES_ROOT/demo/current"
+
 assert_ok      "останавливает статический проект" "$DEPLOY/stop-app.sh" demo
-assert_missing "статика убрана из раздачи"        "$SANDBOX_SITES_ROOT/demo"
+assert_missing "ссылка current снята"             "$SANDBOX_SITES_ROOT/demo/current"
+assert_exists  "релизы сохранены для отката"      "$SANDBOX_SITES_ROOT/demo/releases/abc123/index.html"
 assert_exists  "bare-репозиторий не тронут"       "$SANDBOX_GIT_ROOT/demo.git"
+assert_fail    "повторная остановка сообщает, что нечего останавливать" \
+    "$DEPLOY/stop-app.sh" demo
 
 echo
 echo "== new-app.sh: валидация имени =="

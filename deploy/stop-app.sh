@@ -11,6 +11,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 # shellcheck source=deploy/lib/project.sh
 source "$SCRIPT_DIR/lib/project.sh"
+# shellcheck source=deploy/lib/release.sh
+source "$SCRIPT_DIR/lib/release.sh"
 
 if [[ $# -ne 1 ]]; then
     echo "Usage: $0 <app-name>" >&2
@@ -43,13 +45,22 @@ case "$PROJECT_TYPE" in
    Добавь docker-compose.yml, либо укажи тип явно в .sandbox.conf"
         ;;
     *)
-        if [[ -d "$SITEDIR" ]]; then
-            log "[$NAME] Убираю статику из раздачи"
-            safe_rm_rf "$SANDBOX_SITES_ROOT" "$SITEDIR" || die "[$NAME] остановка прервана"
+        CURRENT_LINK="$(current_link "$NAME")"
+        if [[ -L "$CURRENT_LINK" ]]; then
+            # Убирается только ссылка current: Caddy сразу начинает отдавать
+            # 404, а сами релизы остаются, поэтому проект можно вернуть
+            # откатом, не дожидаясь пересборки.
+            STOPPED_SHA="$(current_release_sha "$NAME" || true)"
+            rm -f "$CURRENT_LINK"
+            log "[$NAME] Снял с раздачи релиз ${STOPPED_SHA:0:12}, сборки сохранены"
+        elif [[ -d "$SITEDIR" ]]; then
+            die "[$NAME] проект ещё не переведён на релизную раскладку — см. docs/MIGRATION.md"
         else
             die "[$NAME] Нечего останавливать — статика не найдена ($SITEDIR)"
         fi
         ;;
 esac
 
-log "[$NAME] остановлен. git push prod main поднимет проект заново."
+log "[$NAME] остановлен."
+echo "   Поднять заново: git push prod main"
+echo "   Либо вернуть последний релиз без пересборки: rollback-app.sh $NAME"

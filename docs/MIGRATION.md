@@ -41,6 +41,7 @@
     env                             серверные секреты, подкладываются в сборку
     lock                            flock-файл для сериализации операций
     deploys.tsv                     история: ts, ref, sha, outcome, duration
+    releases.tsv                    порядок успешных релизов (откат и ротация)
     logs/<sha>.log                  лог сборки конкретного коммита
     build/                          одноразовое дерево сборки статики (чистится)
 
@@ -278,6 +279,14 @@ else
     mv "$SITE.migrating" "$SITE/releases/$STAMP"
     ln -sfn "releases/$STAMP" "$SITE/current"   # ОТНОСИТЕЛЬНЫЙ путь — важно для контейнера
     chown -h deploy:deploy "$SITE/current"
+
+    # Обязательно: релиз должен попасть в журнал порядка. Ротация оставляет
+    # текущий релиз и пять последних записей журнала, поэтому релиз, которого
+    # в журнале нет, будет удалён при первом же деплое — и откатиться на
+    # версию «до миграции» станет некуда.
+    printf '%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$STAMP" \
+        >> "/srv/state/$NAME/releases.tsv"
+    chown deploy:deploy "/srv/state/$NAME/releases.tsv"
 fi
 ```
 

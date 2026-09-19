@@ -42,8 +42,11 @@ if ! command -v node &>/dev/null; then
 fi
 
 # --- 2. Структура каталогов ---
-mkdir -p /srv/git /srv/apps /srv/sites /srv/deploy /srv/caddy
-chown -R deploy:deploy /srv/git /srv/apps /srv/sites /srv/deploy
+mkdir -p /srv/git /srv/apps /srv/sites /srv/state /srv/deploy /srv/caddy
+chown -R deploy:deploy /srv/git /srv/apps /srv/sites /srv/state /srv/deploy
+
+# util-linux: нужен для flock, которым сериализуются операции над проектом
+apt-get install -y util-linux
 
 # --- 3. Общая docker-сеть ---
 docker network inspect sandbox_net &>/dev/null || docker network create sandbox_net
