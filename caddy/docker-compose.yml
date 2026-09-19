@@ -10,6 +10,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./spa.d:/srv/caddy/spa.d:ro
       - /srv/sites:/srv/sites:ro
       - caddy_data:/data
       - caddy_config:/config

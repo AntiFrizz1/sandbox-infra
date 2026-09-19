@@ -9,6 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 # shellcheck source=deploy/lib/project.sh
 source "$SCRIPT_DIR/lib/project.sh"
+# shellcheck source=deploy/lib/caddy.sh
+source "$SCRIPT_DIR/lib/caddy.sh"
 
 FORCE=false
 NAME=""
@@ -65,5 +67,14 @@ safe_rm_rf "$SANDBOX_GIT_ROOT"   "$REPO"     || die "[$NAME] удаление п
 safe_rm_rf "$SANDBOX_APPS_ROOT"  "$WORKDIR"  || die "[$NAME] удаление прервано"
 safe_rm_rf "$SANDBOX_SITES_ROOT" "$SITEDIR"  || die "[$NAME] удаление прервано"
 safe_rm_rf "$SANDBOX_STATE_ROOT" "$STATEDIR" || die "[$NAME] удаление прервано"
+
+# Осиротевший файл правил указывал бы на несуществующий каталог и мешал
+# бы следующему caddy reload — в том числе для чужих проектов.
+if remove_spa_snippet "$NAME"; then
+    log "[$NAME] убраны правила раздачи"
+    if caddy_available && caddy_validate >/dev/null 2>&1; then
+        caddy_reload >/dev/null 2>&1 || warn "[$NAME] caddy reload не удался"
+    fi
+fi
 
 log "[$NAME] полностью удалён."

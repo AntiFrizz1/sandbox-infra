@@ -15,6 +15,8 @@ export SANDBOX_GIT_ROOT="$SB/srv/git"
 export SANDBOX_APPS_ROOT="$SB/srv/apps"
 export SANDBOX_SITES_ROOT="$SB/srv/sites"
 export SANDBOX_STATE_ROOT="$SB/srv/state"
+export SANDBOX_CADDY_SPA_DIR="$SB/srv/caddy/spa.d"
+export SANDBOX_DOMAIN="sandbox.test.local"
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t
 export GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
@@ -186,6 +188,31 @@ assert_eq "откат переключил current" "$PREV" "$(current_sha)"
 assert_eq "сайт отдаёт предыдущую версию" "ВЕРСИЯ-14" "$(served)"
 assert_eq "релизов по-прежнему 5 — откат ничего не удалил" \
     "5" "$(find "$SITE/releases" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+
+echo
+echo "== spa= управляет правилами раздачи =="
+SNIPPET="$SANDBOX_CADDY_SPA_DIR/$NAME.caddy"
+assert_missing "при spa=false правил нет" "$SNIPPET"
+
+cat > "$WORK/.sandbox.conf" <<'EOF'
+type=static
+publish_dir=public
+spa=true
+EOF
+commit "ВЕРСИЯ-SPA"
+push main >/dev/null 2>&1
+assert_exists "при spa=true правила созданы" "$SNIPPET"
+assert_eq "правила указывают на current проекта" "да" \
+    "$(grep -q "root \* /srv/sites/$NAME/current" "$SNIPPET" && echo да || echo нет)"
+
+cat > "$WORK/.sandbox.conf" <<'EOF'
+type=static
+publish_dir=public
+spa=false
+EOF
+commit "ВЕРСИЯ-БЕЗ-SPA"
+push main >/dev/null 2>&1
+assert_missing "возврат к spa=false убирает правила" "$SNIPPET"
 
 echo
 echo "== блокировка сериализует операции =="

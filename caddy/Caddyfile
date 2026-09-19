@@ -10,9 +10,30 @@
     tls {
         dns timeweb {env.TIMEWEB_API_TOKEN}
     }
-    @app header_regexp app Host ^([a-z0-9-]+)\.sandbox\.example\.com$
-    root @app /srv/sites/{re.app.1}
-    file_server
+
+    # Пер-проектные SPA-правила. Генерируются деплой-хуком по ключу spa=
+    # из .sandbox.conf и импортируются ВНУТРЬ этого блока: отдельный
+    # site-блок на проект заставил бы Caddy выпускать по сертификату на
+    # каждый поддомен вместо одного wildcard.
+    #
+    # Импорт стоит до общего handle — блоки handle взаимоисключающие и
+    # проверяются в порядке записи, поэтому SPA-проекты перехватываются
+    # своими правилами, а все остальные попадают в обычный file_server.
+    import /srv/caddy/spa.d/*.caddy
+
+    # Регулярное выражение совпадает с правилом валидации имён проектов
+    # (deploy/lib/common.sh): дефис не может быть первым или последним.
+    @app header_regexp app Host ^([a-z0-9]([a-z0-9-]*[a-z0-9])?)\.sandbox\.example\.com$
+    handle @app {
+        # Раздаётся ссылка current, а не сам каталог проекта: она
+        # переключается атомарно после успешной сборки.
+        root * /srv/sites/{re.app.1}/current
+        file_server
+    }
+
+    handle {
+        respond "Unknown sandbox project" 404
+    }
 }
 
 # Голый apex-домен — не wildcard, поэтому спокойно проходит через

@@ -75,6 +75,12 @@ fi
 cp "$SCRIPT_DIR/caddy/Caddyfile" /srv/caddy/Caddyfile
 cp "$SCRIPT_DIR/caddy/docker-compose.yml" /srv/caddy/docker-compose.yml
 
+# Пер-проектные SPA-правила. Каталог должен существовать до старта Caddy:
+# import с несовпавшим glob — это предупреждение, а не ошибка, но
+# отсутствующий каталог сломал бы bind-mount.
+mkdir -p /srv/caddy/spa.d
+chown deploy:deploy /srv/caddy/spa.d
+
 if [[ ! -f /srv/caddy/.env ]]; then
     cp "$SCRIPT_DIR/caddy/.env.example" /srv/caddy/.env
     echo "!! Отредактируй /srv/caddy/.env — впиши TIMEWEB_API_TOKEN"

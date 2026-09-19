@@ -19,6 +19,8 @@ source "$SCRIPT_DIR/lib/common.sh"
 source "$SCRIPT_DIR/lib/project.sh"
 # shellcheck source=deploy/lib/release.sh
 source "$SCRIPT_DIR/lib/release.sh"
+# shellcheck source=deploy/lib/caddy.sh
+source "$SCRIPT_DIR/lib/caddy.sh"
 
 DEPLOY_BRANCH="${SANDBOX_DEPLOY_BRANCH:-main}"
 TARGET_REF="refs/heads/$DEPLOY_BRANCH"
@@ -182,6 +184,11 @@ case "$PROJECT_TYPE" in
         echo "   публикую $PROJECT_PUBLISH_DIR → releases/$SHORT_SHA"
         publish_release "$APP_NAME" "$NEWREV" "$PUBLISH_SRC" \
             || die "[$APP_NAME] публикация релиза не удалась"
+
+        # Релиз уже переключён и сайт работает, поэтому проблема с правилами
+        # раздачи не должна помечать деплой провалившимся — только предупредить.
+        sync_spa_config "$APP_NAME" "$PROJECT_SPA" "$SANDBOX_DOMAIN" \
+            || warn "[$APP_NAME] релиз опубликован, но правила раздачи не применились"
         ;;
 esac
 
