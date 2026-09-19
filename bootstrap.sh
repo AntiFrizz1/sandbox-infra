@@ -72,8 +72,21 @@ EOF
 fi
 
 # --- 5. Caddy ---
-cp "$SCRIPT_DIR/caddy/Caddyfile" /srv/caddy/Caddyfile
-cp "$SCRIPT_DIR/caddy/docker-compose.yml" /srv/caddy/docker-compose.yml
+# Существующая конфигурация не перезаписывается: в ней уже вписан домен.
+# Для обновления есть отдельный скрипт, который переносит домен и email
+# в новый шаблон и проверяет результат перед применением.
+if [[ -f /srv/caddy/Caddyfile ]]; then
+    echo "!! /srv/caddy/Caddyfile уже существует — не трогаю его."
+    echo "   Обновить конфигурацию: ./update-infra.sh --caddy-only"
+else
+    cp "$SCRIPT_DIR/caddy/Caddyfile" /srv/caddy/Caddyfile
+fi
+
+if [[ -f /srv/caddy/docker-compose.yml ]]; then
+    echo "!! /srv/caddy/docker-compose.yml уже существует — не трогаю его."
+else
+    cp "$SCRIPT_DIR/caddy/docker-compose.yml" /srv/caddy/docker-compose.yml
+fi
 
 # Пер-проектные SPA-правила. Каталог должен существовать до старта Caddy:
 # import с несовпавшим glob — это предупреждение, а не ошибка, но
