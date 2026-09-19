@@ -181,13 +181,26 @@ assert_eq    "сайт отдаёт последнюю версию" "ВЕРСИ
 
 echo
 echo "== откат без пересборки =="
-PREV=$(basename "$(find "$SITE/releases" -mindepth 1 -maxdepth 1 -type d \
-    -not -name "$(current_sha)" -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2-)")
-out=$("$ROOT/deploy/rollback-app.sh" "$NAME" 2>&1)
-assert_eq "откат переключил current" "$PREV" "$(current_sha)"
-assert_eq "сайт отдаёт предыдущую версию" "ВЕРСИЯ-14" "$(served)"
-assert_eq "релизов по-прежнему 5 — откат ничего не удалил" \
-    "5" "$(find "$SITE/releases" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+# Ожидаемый релиз фиксируется двумя известными деплоями подряд, а не
+# вычисляется по mtime: порядок релизов задаёт журнал, и тест не должен
+# угадывать его другим способом.
+commit "ВЕРСИЯ-ПРЕДЫДУЩАЯ"
+push main >/dev/null 2>&1
+PREV=$(current_sha)
+commit "ВЕРСИЯ-ТЕКУЩАЯ"
+push main >/dev/null 2>&1
+CUR=$(current_sha)
+assert_eq "перед откатом отдаётся текущая версия" "ВЕРСИЯ-ТЕКУЩАЯ" "$(served)"
+
+BEFORE_COUNT=$(find "$SITE/releases" -mindepth 1 -maxdepth 1 -type d | wc -l)
+assert_ok "откат отрабатывает" "$ROOT/deploy/rollback-app.sh" "$NAME"
+assert_eq "current переключён на предыдущий релиз" "$PREV" "$(current_sha)"
+assert_eq "current больше не указывает на прежний" "да" \
+    "$( [[ "$(current_sha)" != "$CUR" ]] && echo да || echo нет )"
+assert_eq "сайт отдаёт предыдущую версию" "ВЕРСИЯ-ПРЕДЫДУЩАЯ" "$(served)"
+assert_eq "откат ничего не удалил" "$BEFORE_COUNT" \
+    "$(find "$SITE/releases" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+assert_exists "релиз, с которого откатились, сохранён" "$SITE/releases/$CUR"
 
 echo
 echo "== spa= управляет правилами раздачи =="

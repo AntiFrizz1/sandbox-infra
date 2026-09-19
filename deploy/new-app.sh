@@ -7,17 +7,39 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=deploy/lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
 
-if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 <app-name>" >&2
+ENSURE=false
+NAME=""
+NAME_SEEN=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --ensure)
+            # Идемпотентный режим: существующий проект не считается ошибкой.
+            # Нужен клиенту, который вызывает скрипт при каждом init.
+            ENSURE=true
+            ;;
+        *)
+            [[ "$NAME_SEEN" == true ]] && die "лишний аргумент: '$arg'"
+            NAME="$arg"
+            NAME_SEEN=true
+            ;;
+    esac
+done
+
+if [[ "$NAME_SEEN" != true ]]; then
+    echo "Usage: $0 <app-name> [--ensure]" >&2
     exit 1
 fi
 
-NAME="$1"
 require_valid_app_name "$NAME"
 
 REPO="$(app_repo_dir "$NAME")"
 
 if [[ -e "$REPO" ]]; then
+    if [[ "$ENSURE" == true ]]; then
+        echo "   репозиторий уже существует, пропускаю создание"
+        exit 0
+    fi
     die "$REPO уже существует"
 fi
 

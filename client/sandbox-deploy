@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
 # sandbox-deploy — локальный помощник для sandbox-инфраструктуры.
 #
-# Создаёт (идемпотентно) bare-репозиторий на VPS через один SSH-вызов
-# и настраивает git remote в текущей папке — без ручного логина по SSH.
+# Настройка хоста берётся из переменных окружения либо из
+# ~/.config/sandbox-deploy/config, если файл существует.
 #
-# Настройка хоста берётся из переменных окружения (см. ниже) либо
-# из ~/.config/sandbox-deploy/config, если файл существует.
+#   sandbox-deploy init [имя]      создать проект на VPS и настроить remote
+#   sandbox-deploy push            запушить и дождаться результата деплоя
+#   sandbox-deploy status [имя]    активный релиз и последний деплой
+#   sandbox-deploy list            все проекты на VPS
+#   sandbox-deploy logs [имя] [sha|--list]
+#   sandbox-deploy redeploy [имя]  пересобрать текущий коммит
+#   sandbox-deploy rollback [имя] [sha|--list]
+#   sandbox-deploy stop [имя]
+#   sandbox-deploy remove [имя]
 #
-# Использование:
-#   sandbox-deploy                # имя проекта = имя текущей папки
-#   sandbox-deploy myapp          # явное имя проекта
-#   sandbox-deploy myapp --push   # создать + сразу запушить
-#   sandbox-deploy stop [myapp]   # временно остановить (данные сохраняются)
-#   sandbox-deploy remove [myapp] # полностью и необратимо удалить
+# Общие флаги:
+#   -y, --yes        не задавать вопросов (для скриптов и CI)
+#   --commit-all "сообщение"
+#                    закоммитить все изменения перед пушем. Без этого флага
+#                    рабочее дерево не трогается: раньше клиент делал
+#                    `git add -A` сам и затягивал в коммит что попало.
 set -euo pipefail
 
 CONFIG_FILE="$HOME/.config/sandbox-deploy/config"
@@ -23,6 +30,16 @@ fi
 
 SANDBOX_HOST="${SANDBOX_HOST:-}"
 REMOTE_NAME="${SANDBOX_REMOTE_NAME:-prod}"
+DEPLOY_BRANCH="${SANDBOX_DEPLOY_BRANCH:-main}"
+
+ASSUME_YES=false
+COMMIT_MSG=""
+
+# Неинтерактивный запуск не должен зависать на вопросе.
+[[ -t 0 ]] || ASSUME_YES=true
+
+die()  { echo "!! $*" >&2; exit 1; }
+log()  { echo "==> $*"; }
 
 # Клиент распространяется отдельно от серверных скриптов, поэтому правило
 # валидации продублировано здесь намеренно. Канонический источник —
@@ -43,138 +60,256 @@ require_valid_app_name() {
     echo "!! недопустимое имя проекта: '${name}'" >&2
     echo "   Разрешено: 1–63 символа, строчные латинские буквы, цифры и дефис," >&2
     echo "   первый и последний символ — буква или цифра. Например: my-app" >&2
-    echo "   Передай корректное имя явно: sandbox-deploy <имя>" >&2
+    echo "   Передай корректное имя явно: sandbox-deploy <команда> <имя>" >&2
     exit 1
+}
+
+confirm() {  # confirm <вопрос> — true, если подтверждено
+    [[ "$ASSUME_YES" == true ]] && return 0
+    local ans
+    read -rp "$1 [y/N] " ans
+    [[ "${ans:-n}" =~ ^[Yy]$ ]]
 }
 
 # ssh склеивает аргументы команды в одну строку и отдаёт её удалённому шеллу,
-# теряя кавычки. Имя уже провалидировано, но экранируем и здесь.
+# теряя кавычки. Имена уже провалидированы, но экранируем и здесь.
 remote_run() {
-    # SC2029: раскрытие на стороне клиента здесь и нужно — printf '%q'
-    # экранирует имя до отправки, чтобы удалённый шелл получил его как
-    # единственный аргумент, а не как часть команды.
+    local cmd=$1; shift
+    local args=""
+    local a
+    for a in "$@"; do
+        args+=" $(printf '%q' "$a")"
+    done
+    # SC2029: раскрытие на стороне клиента здесь и нужно.
     # shellcheck disable=SC2029
-    ssh "$SANDBOX_HOST" "$1 $(printf '%q' "$2")"
+    ssh "$SANDBOX_HOST" "$cmd$args"
 }
 
-if [[ -z "$SANDBOX_HOST" ]]; then
-    echo "!! SANDBOX_HOST не задан." >&2
-    echo "   Задай его через переменную окружения или создай $CONFIG_FILE:" >&2
-    echo "     mkdir -p ~/.config/sandbox-deploy" >&2
-    echo "     echo 'SANDBOX_HOST=deploy@sandbox.example.com' > $CONFIG_FILE" >&2
-    exit 1
-fi
+in_git_repo() {
+    # В worktree .git — обычный файл, а не каталог, поэтому проверять
+    # наличие каталога нельзя.
+    git rev-parse --git-dir >/dev/null 2>&1
+}
 
-SUBCOMMAND=""
-case "${1:-}" in
-    stop|remove)
-        SUBCOMMAND="$1"
-        shift
-        ;;
+# Имя проекта берётся из remote, а не из имени каталога: каталог мог быть
+# переименован или клонирован под другим именем.
+name_from_remote() {
+    local url
+    url=$(git remote get-url "$REMOTE_NAME" 2>/dev/null) || return 1
+    [[ "$url" =~ /srv/git/([^/]+)\.git/?$ ]] || return 1
+    printf '%s\n' "${BASH_REMATCH[1]}"
+}
+
+resolve_app_name() {  # resolve_app_name [явное-имя]
+    local explicit=${1-}
+    if [[ -n "$explicit" ]]; then
+        printf '%s\n' "$explicit"
+        return 0
+    fi
+    if in_git_repo && name_from_remote; then
+        return 0
+    fi
+    basename "$(pwd)"
+}
+
+# --- разбор общих флагов ----------------------------------------------------
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -y|--yes)     ASSUME_YES=true; shift ;;
+        --commit-all) COMMIT_MSG="${2-}"; [[ -n "$COMMIT_MSG" ]] || die "--commit-all требует сообщение"; shift 2 ;;
+        -h|--help)    sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        *)            ARGS+=("$1"); shift ;;
+    esac
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
+
+[[ -n "$SANDBOX_HOST" ]] || die "SANDBOX_HOST не задан.
+   Задай его через переменную окружения или создай $CONFIG_FILE:
+     mkdir -p ~/.config/sandbox-deploy
+     echo 'SANDBOX_HOST=deploy@sandbox.example.com' > $CONFIG_FILE"
+
+COMMAND="${1-}"
+case "$COMMAND" in
+    init|push|status|list|logs|redeploy|rollback|stop|remove) shift ;;
+    "")   COMMAND=init ;;
+    -*)   die "неизвестный флаг: $COMMAND" ;;
+    *)    # sandbox-deploy myapp — сокращение для init
+          COMMAND=init ;;
 esac
 
-if [[ -n "$SUBCOMMAND" ]]; then
-    APP_NAME="${1:-$(basename "$(pwd)")}"
-    require_valid_app_name "$APP_NAME"
+# --- push с проверкой результата --------------------------------------------
 
-    if [[ "$SUBCOMMAND" == "stop" ]]; then
-        echo "==> Останавливаю '$APP_NAME' на $SANDBOX_HOST"
-        remote_run /srv/deploy/stop-app.sh "$APP_NAME"
-    else
-        read -rp "Точно удалить '$APP_NAME' с $SANDBOX_HOST? Это удалит bare-репозиторий, файлы и Docker-данные без возможности восстановления. [y/N] " ans
-        if [[ ! "${ans:-n}" =~ ^[Yy]$ ]]; then
-            echo "Отменено."
-            exit 0
+# Провалившийся post-receive не отменяет уже принятый пуш, поэтому нулевой
+# код возврата git push ничего не говорит об успехе деплоя. Реальный исход
+# спрашиваем у сервера.
+push_and_verify() {
+    local name=$1 sha
+    sha=$(git rev-parse HEAD)
+
+    log "Пушу $DEPLOY_BRANCH → $REMOTE_NAME (${sha:0:12})"
+    git push "$REMOTE_NAME" "HEAD:refs/heads/$DEPLOY_BRANCH"
+
+    echo
+    log "Проверяю, что деплой действительно прошёл"
+    local outcome
+    outcome=$(remote_run /srv/deploy/status-app.sh "$name" --check "$sha") || true
+
+    case "$outcome" in
+        ok)
+            log "Деплой успешен: ${sha:0:12}"
+            ;;
+        no-record)
+            die "Пуш принят, но сервер не зарегистрировал деплой этого коммита.
+   Посмотри: sandbox-deploy logs $name"
+            ;;
+        *)
+            echo "!! ПУШ ПРИНЯТ, НО ДЕПЛОЙ ПРОВАЛИЛСЯ (${sha:0:12})" >&2
+            echo "   Развёрнутая версия НЕ обновилась." >&2
+            echo "   Лог: sandbox-deploy logs $name" >&2
+            echo "   Состояние: sandbox-deploy status $name" >&2
+            exit 1
+            ;;
+    esac
+}
+
+case "$COMMAND" in
+
+    list)
+        remote_run /srv/deploy/list-apps.sh
+        ;;
+
+    status)
+        APP_NAME=$(resolve_app_name "${1-}")
+        require_valid_app_name "$APP_NAME"
+        remote_run /srv/deploy/status-app.sh "$APP_NAME"
+        ;;
+
+    logs)
+        APP_NAME=$(resolve_app_name "${1-}")
+        require_valid_app_name "$APP_NAME"
+        if [[ -n "${2-}" ]]; then
+            remote_run /srv/deploy/logs-app.sh "$APP_NAME" "$2"
+        elif [[ -n "${1-}" && "${1-}" == -* ]]; then
+            remote_run /srv/deploy/logs-app.sh "$APP_NAME" "$1"
+        else
+            remote_run /srv/deploy/logs-app.sh "$APP_NAME"
         fi
-        echo "==> Удаляю '$APP_NAME' на $SANDBOX_HOST"
+        ;;
+
+    rollback)
+        APP_NAME=$(resolve_app_name "${1-}")
+        require_valid_app_name "$APP_NAME"
+        if [[ -n "${2-}" ]]; then
+            remote_run /srv/deploy/rollback-app.sh "$APP_NAME" "$2"
+        else
+            confirm "Откатить '$APP_NAME' на предыдущий релиз?" || { echo "Отменено."; exit 0; }
+            remote_run /srv/deploy/rollback-app.sh "$APP_NAME"
+        fi
+        ;;
+
+    stop)
+        APP_NAME=$(resolve_app_name "${1-}")
+        require_valid_app_name "$APP_NAME"
+        log "Останавливаю '$APP_NAME' на $SANDBOX_HOST"
+        remote_run /srv/deploy/stop-app.sh "$APP_NAME"
+        ;;
+
+    remove)
+        APP_NAME=$(resolve_app_name "${1-}")
+        require_valid_app_name "$APP_NAME"
+        confirm "Точно удалить '$APP_NAME' с $SANDBOX_HOST? Это удалит bare-репозиторий, файлы и Docker-данные без возможности восстановления." \
+            || { echo "Отменено."; exit 0; }
+        log "Удаляю '$APP_NAME' на $SANDBOX_HOST"
         remote_run "/srv/deploy/remove-app.sh --force" "$APP_NAME"
-    fi
+        ;;
 
-    exit 0
-fi
+    redeploy)
+        in_git_repo || die "redeploy выполняется из git-репозитория проекта"
+        APP_NAME=$(resolve_app_name "${1-}")
+        require_valid_app_name "$APP_NAME"
+        # Пустой коммит — единственный способ заставить git отправить тот же
+        # код заново, не трогая рабочее дерево.
+        git commit --allow-empty -qm "redeploy $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        push_and_verify "$APP_NAME"
+        ;;
 
-APP_NAME="${1:-}"
-AUTO_PUSH=false
+    push)
+        in_git_repo || die "push выполняется из git-репозитория проекта"
+        APP_NAME=$(resolve_app_name "${1-}")
+        require_valid_app_name "$APP_NAME"
 
-for arg in "$@"; do
-    [[ "$arg" == "--push" ]] && AUTO_PUSH=true
-done
+        if [[ -n "$COMMIT_MSG" ]]; then
+            git add -A
+            git commit -qm "$COMMIT_MSG" || true
+        elif [[ -n "$(git status --porcelain)" ]]; then
+            echo "!! В рабочем дереве есть незакоммиченные изменения — они НЕ попадут в деплой." >&2
+            echo "   Закоммить их сам, либо повтори с: --commit-all \"сообщение\"" >&2
+            confirm "Продолжить и запушить только закоммиченное?" \
+                || { echo "Отменено."; exit 0; }
+        fi
 
-if [[ -z "$APP_NAME" || "$APP_NAME" == "--push" ]]; then
-    APP_NAME="$(basename "$(pwd)")"
-fi
+        push_and_verify "$APP_NAME"
+        ;;
 
-read -rp "Имя проекта на sandbox [$APP_NAME]: " INPUT_NAME
-APP_NAME="${INPUT_NAME:-$APP_NAME}"
-require_valid_app_name "$APP_NAME"
+    init)
+        APP_NAME="${1-}"
+        if [[ -z "$APP_NAME" ]]; then
+            if in_git_repo && APP_NAME=$(name_from_remote); then
+                log "Имя взято из remote '$REMOTE_NAME': $APP_NAME"
+            else
+                APP_NAME="$(basename "$(pwd)")"
+                if [[ "$ASSUME_YES" != true ]]; then
+                    read -rp "Имя проекта на sandbox [$APP_NAME]: " INPUT_NAME
+                    APP_NAME="${INPUT_NAME:-$APP_NAME}"
+                fi
+            fi
+        fi
+        require_valid_app_name "$APP_NAME"
 
-# --- git-репозиторий локально ---
-if [[ ! -d .git ]]; then
-    echo "==> Локальной git-репы нет, инициализирую"
-    git init -q
-    git branch -M main
-fi
+        if ! in_git_repo; then
+            confirm "Здесь нет git-репозитория. Инициализировать?" \
+                || die "нужен git-репозиторий"
+            git init -q
+            git branch -M "$DEPLOY_BRANCH"
+        fi
 
-CURRENT_BRANCH="$(git branch --show-current)"
-if [[ "$CURRENT_BRANCH" != "main" ]]; then
-    echo "!! Текущая ветка '$CURRENT_BRANCH', но deploy-хук на сервере ждёт 'main'."
-    read -rp "   Переименовать в main? [Y/n] " ans
-    if [[ "${ans:-y}" =~ ^[Yy]$ ]]; then
-        git branch -M main
-    fi
-fi
+        CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || true)"
+        if [[ -n "$CURRENT_BRANCH" && "$CURRENT_BRANCH" != "$DEPLOY_BRANCH" ]]; then
+            # Ветка больше не переименовывается автоматически: это меняло
+            # структуру чужого репозитория без спроса. Пуш всё равно работает
+            # — HEAD отправляется в refs/heads/<DEPLOY_BRANCH>.
+            echo "   Текущая ветка '$CURRENT_BRANCH', сервер деплоит '$DEPLOY_BRANCH'."
+            echo "   Пуш отправит HEAD в $DEPLOY_BRANCH, ветку переименовывать не нужно."
+        fi
 
-# --- создание/проверка bare-репозитория на VPS одним SSH-вызовом ---
-echo "==> Проверяю проект '$APP_NAME' на $SANDBOX_HOST"
-ssh "$SANDBOX_HOST" bash -s -- "$(printf '%q' "$APP_NAME")" <<'REMOTE_SCRIPT'
-set -euo pipefail
-NAME="$1"
-REPO="/srv/git/$NAME.git"
-if [[ -d "$REPO" ]]; then
-    echo "   репозиторий уже существует, пропускаю создание"
-else
-    /srv/deploy/new-app.sh "$NAME" >/dev/null
-    echo "   создан новый bare-репозиторий"
-fi
-REMOTE_SCRIPT
+        log "Проверяю проект '$APP_NAME' на $SANDBOX_HOST"
+        remote_run "/srv/deploy/new-app.sh --ensure" "$APP_NAME"
 
-# --- git remote локально ---
-REMOTE_URL="ssh://${SANDBOX_HOST}/srv/git/${APP_NAME}.git"
+        REMOTE_URL="ssh://${SANDBOX_HOST}/srv/git/${APP_NAME}.git"
+        if git remote get-url "$REMOTE_NAME" &>/dev/null; then
+            git remote set-url "$REMOTE_NAME" "$REMOTE_URL"
+            log "Remote '$REMOTE_NAME' обновлён: $REMOTE_URL"
+        else
+            git remote add "$REMOTE_NAME" "$REMOTE_URL"
+            log "Remote '$REMOTE_NAME' добавлен: $REMOTE_URL"
+        fi
 
-if git remote get-url "$REMOTE_NAME" &>/dev/null; then
-    git remote set-url "$REMOTE_NAME" "$REMOTE_URL"
-    echo "==> Remote '$REMOTE_NAME' обновлён: $REMOTE_URL"
-else
-    git remote add "$REMOTE_NAME" "$REMOTE_URL"
-    echo "==> Remote '$REMOTE_NAME' добавлен: $REMOTE_URL"
-fi
+        if [[ ! -f .sandbox.conf ]]; then
+            echo
+            echo "   Подсказка: добавь .sandbox.conf, чтобы задать тип проекта и"
+            echo "   каталог публикации явно. Примеры — в examples/ репозитория"
+            echo "   sandbox-infra. По умолчанию публикуется public/ (статика)"
+            echo "   или dist/ (сборка node)."
+        fi
 
-# --- напоминание про лейблы, если это Docker-проект ---
-if [[ -f "docker-compose.yml" || -f "Dockerfile" ]]; then
-    if [[ -f "docker-compose.yml" ]] && ! grep -q "caddy:" docker-compose.yml; then
-        echo ""
-        echo "!! Это Docker-проект, но лейблов caddy: в docker-compose.yml не нашёл."
-        echo "   Добавь для внешнего доступа что-то вроде:"
-        echo "     labels:"
-        echo "       caddy: $APP_NAME.sandbox.<домен>"
-        echo "       caddy.reverse_proxy: \"{{upstreams <порт>}}\""
-    fi
-fi
-
-# --- пуш ---
-if [[ "$AUTO_PUSH" == false ]]; then
-    read -rp $'\nЗапушить прямо сейчас? [Y/n] ' ans
-    [[ "${ans:-y}" =~ ^[Yy]$ ]] && AUTO_PUSH=true
-fi
-
-if [[ "$AUTO_PUSH" == true ]]; then
-    if [[ -z "$(git status --porcelain)" && -n "$(git log -1 2>/dev/null || true)" ]]; then
-        git commit --allow-empty -m "deploy" -q
-    else
-        git add -A
-        git commit -m "deploy" -q || true
-    fi
-    git push "$REMOTE_NAME" main
-else
-    echo "Готово. Запушить позже: git push $REMOTE_NAME main"
-fi
+        if [[ -z "$(git log -1 2>/dev/null || true)" ]]; then
+            echo
+            echo "Готово. Сделай первый коммит и запушь: sandbox-deploy push"
+        elif confirm $'\nЗапушить прямо сейчас?'; then
+            push_and_verify "$APP_NAME"
+        else
+            echo "Готово. Запушить позже: sandbox-deploy push"
+        fi
+        ;;
+esac
