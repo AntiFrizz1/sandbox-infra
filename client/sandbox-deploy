@@ -24,6 +24,39 @@ fi
 SANDBOX_HOST="${SANDBOX_HOST:-}"
 REMOTE_NAME="${SANDBOX_REMOTE_NAME:-prod}"
 
+# Клиент распространяется отдельно от серверных скриптов, поэтому правило
+# валидации продублировано здесь намеренно. Канонический источник —
+# deploy/lib/common.sh:is_valid_app_name; tests/test_client.sh следит,
+# чтобы обе копии не разъехались.
+is_valid_app_name() {
+    [[ $# -eq 1 ]] || return 2
+    local name=$1
+    (( ${#name} >= 1 && ${#name} <= 63 )) || return 1
+    [[ $name == *$'\n'* ]] && return 1
+    [[ $name =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] || return 1
+    return 0
+}
+
+require_valid_app_name() {
+    local name=${1-}
+    is_valid_app_name "$name" && return 0
+    echo "!! недопустимое имя проекта: '${name}'" >&2
+    echo "   Разрешено: 1–63 символа, строчные латинские буквы, цифры и дефис," >&2
+    echo "   первый и последний символ — буква или цифра. Например: my-app" >&2
+    echo "   Передай корректное имя явно: sandbox-deploy <имя>" >&2
+    exit 1
+}
+
+# ssh склеивает аргументы команды в одну строку и отдаёт её удалённому шеллу,
+# теряя кавычки. Имя уже провалидировано, но экранируем и здесь.
+remote_run() {
+    # SC2029: раскрытие на стороне клиента здесь и нужно — printf '%q'
+    # экранирует имя до отправки, чтобы удалённый шелл получил его как
+    # единственный аргумент, а не как часть команды.
+    # shellcheck disable=SC2029
+    ssh "$SANDBOX_HOST" "$1 $(printf '%q' "$2")"
+}
+
 if [[ -z "$SANDBOX_HOST" ]]; then
     echo "!! SANDBOX_HOST не задан." >&2
     echo "   Задай его через переменную окружения или создай $CONFIG_FILE:" >&2
@@ -42,24 +75,19 @@ esac
 
 if [[ -n "$SUBCOMMAND" ]]; then
     APP_NAME="${1:-$(basename "$(pwd)")}"
+    require_valid_app_name "$APP_NAME"
 
     if [[ "$SUBCOMMAND" == "stop" ]]; then
         echo "==> Останавливаю '$APP_NAME' на $SANDBOX_HOST"
-        ssh "$SANDBOX_HOST" bash -s -- "$APP_NAME" <<'REMOTE_SCRIPT'
-set -euo pipefail
-/srv/deploy/stop-app.sh "$1"
-REMOTE_SCRIPT
+        remote_run /srv/deploy/stop-app.sh "$APP_NAME"
     else
         read -rp "Точно удалить '$APP_NAME' с $SANDBOX_HOST? Это удалит bare-репозиторий, файлы и Docker-данные без возможности восстановления. [y/N] " ans
         if [[ ! "${ans:-n}" =~ ^[Yy]$ ]]; then
             echo "Отменено."
-            exit 1
+            exit 0
         fi
         echo "==> Удаляю '$APP_NAME' на $SANDBOX_HOST"
-        ssh "$SANDBOX_HOST" bash -s -- "$APP_NAME" <<'REMOTE_SCRIPT'
-set -euo pipefail
-/srv/deploy/remove-app.sh "$1" --force
-REMOTE_SCRIPT
+        remote_run "/srv/deploy/remove-app.sh --force" "$APP_NAME"
     fi
 
     exit 0
@@ -78,6 +106,7 @@ fi
 
 read -rp "Имя проекта на sandbox [$APP_NAME]: " INPUT_NAME
 APP_NAME="${INPUT_NAME:-$APP_NAME}"
+require_valid_app_name "$APP_NAME"
 
 # --- git-репозиторий локально ---
 if [[ ! -d .git ]]; then
@@ -97,7 +126,7 @@ fi
 
 # --- создание/проверка bare-репозитория на VPS одним SSH-вызовом ---
 echo "==> Проверяю проект '$APP_NAME' на $SANDBOX_HOST"
-ssh "$SANDBOX_HOST" bash -s -- "$APP_NAME" <<'REMOTE_SCRIPT'
+ssh "$SANDBOX_HOST" bash -s -- "$(printf '%q' "$APP_NAME")" <<'REMOTE_SCRIPT'
 set -euo pipefail
 NAME="$1"
 REPO="/srv/git/$NAME.git"

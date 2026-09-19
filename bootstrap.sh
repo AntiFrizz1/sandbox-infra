@@ -49,12 +49,24 @@ chown -R deploy:deploy /srv/git /srv/apps /srv/sites /srv/deploy
 docker network inspect sandbox_net &>/dev/null || docker network create sandbox_net
 
 # --- 4. Deploy-хук и хелперы ---
-cp "$SCRIPT_DIR/deploy/hook.sh" /srv/deploy/hook.sh
-cp "$SCRIPT_DIR/deploy/new-app.sh" /srv/deploy/new-app.sh
-cp "$SCRIPT_DIR/deploy/stop-app.sh" /srv/deploy/stop-app.sh
-cp "$SCRIPT_DIR/deploy/remove-app.sh" /srv/deploy/remove-app.sh
-chmod +x /srv/deploy/hook.sh /srv/deploy/new-app.sh /srv/deploy/stop-app.sh /srv/deploy/remove-app.sh
-chown deploy:deploy /srv/deploy/hook.sh /srv/deploy/new-app.sh /srv/deploy/stop-app.sh /srv/deploy/remove-app.sh
+# Копируется весь каталог deploy/, включая lib/ — скрипты подключают
+# lib/common.sh относительно собственного расположения.
+mkdir -p /srv/deploy/lib
+install -m 755 -o deploy -g deploy "$SCRIPT_DIR"/deploy/*.sh /srv/deploy/
+install -m 644 -o deploy -g deploy "$SCRIPT_DIR"/deploy/lib/*.sh /srv/deploy/lib/
+
+# --- 4a. Общий конфиг: домен и SSH-хост ---
+# Пишется один раз, чтобы new-app.sh печатал реальный домен, а не плейсхолдер.
+if [[ ! -f /srv/sandbox.conf ]]; then
+    cat > /srv/sandbox.conf <<'EOF'
+# Домен sandbox-инфраструктуры. Проекты доступны на <app>.<SANDBOX_DOMAIN>.
+SANDBOX_DOMAIN=sandbox.example.com
+# Хост для git remote, обычно совпадает с доменом.
+SANDBOX_SSH_HOST=sandbox.example.com
+EOF
+    chown deploy:deploy /srv/sandbox.conf
+    echo "!! Впиши свой домен в /srv/sandbox.conf"
+fi
 
 # --- 5. Caddy ---
 cp "$SCRIPT_DIR/caddy/Caddyfile" /srv/caddy/Caddyfile
@@ -77,7 +89,8 @@ cat <<'EOF'
 ==> Готово.
 
 Дальше нужно вручную:
-  1. В /srv/caddy/Caddyfile заменить sandbox.example.com на свой домен.
+  1. В /srv/caddy/Caddyfile и /srv/sandbox.conf заменить sandbox.example.com
+     на свой домен.
   2. В /srv/caddy/.env вписать TIMEWEB_API_TOKEN.
   3. Перезапустить Caddy: cd /srv/caddy && docker compose up -d --force-recreate
   4. Добавить DNS A-записи в панели Timeweb:
