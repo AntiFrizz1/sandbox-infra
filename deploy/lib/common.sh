@@ -119,3 +119,23 @@ app_repo_dir()  { printf '%s/%s.git\n' "$SANDBOX_GIT_ROOT"   "$1"; }
 app_work_dir()  { printf '%s/%s\n'     "$SANDBOX_APPS_ROOT"  "$1"; }
 app_site_dir()  { printf '%s/%s\n'     "$SANDBOX_SITES_ROOT" "$1"; }
 app_state_dir() { printf '%s/%s\n'     "$SANDBOX_STATE_ROOT" "$1"; }
+
+# Lock-файлы не удаляются вместе с проектом: ожидающие процессы должны
+# всегда блокировать один inode, в том числе после remove/new-app.
+app_lock_file() { printf '%s/.locks/%s.lock\n' "$SANDBOX_STATE_ROOT" "$1"; }
+lock_app() {
+    require_valid_app_name "$1"
+    command -v flock >/dev/null 2>&1 || die "flock обязателен (пакет util-linux)"
+    mkdir -p "$SANDBOX_STATE_ROOT/.locks"
+    exec 9>"$(app_lock_file "$1")"
+    flock -w "${SANDBOX_LOCK_TIMEOUT:-600}" 9 \
+        || die "[$1] другая операция над проектом уже выполняется"
+}
+
+# При запуске установщика/миграции от root новые файлы принадлежат deploy.
+# В локальных тестах без root владельцем остаётся текущий пользователь.
+set_deploy_owner() {
+    if (( EUID == 0 )); then
+        chown -h "${SANDBOX_DEPLOY_OWNER:-deploy:deploy}" "$@"
+    fi
+}

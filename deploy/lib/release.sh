@@ -25,13 +25,21 @@ release_dir()     { printf '%s/releases/%s\n' "$(app_site_dir "$1")" "$2"; }
 current_link()    { printf '%s/current\n' "$(app_site_dir "$1")"; }
 releases_log()    { printf '%s/releases.tsv\n' "$(app_state_dir "$1")"; }
 
-# current_release_sha <name> — печатает sha текущего релиза, если он есть.
-current_release_sha() {
+# current_release_id <name> — ID каталога текущей сборки.
+current_release_id() {
     local link target
     link="$(current_link "$1")"
     [[ -L $link ]] || return 1
     target=$(readlink -- "$link") || return 1
     printf '%s\n' "${target##*/}"
+}
+
+# У повторной сборки свой release ID; SHA остаётся префиксом до точки.
+current_release_sha() {
+    local id
+    id=$(current_release_id "$1") || return 1
+    [[ -d "$(current_link "$1")" ]] || return 1
+    printf '%s\n' "${id%%.*}"
 }
 
 # validate_release_output <dir> — минимальная проверка того, что публиковать
@@ -54,7 +62,7 @@ validate_release_output() {
 publish_release() {
     [[ $# -eq 3 ]] || return 2
     local name=$1 sha=$2 src=$3
-    local site rel tmp_link excludes=()
+    local site rel staging id tmp_link excludes=()
 
     site="$(app_site_dir "$name")"
     rel="$(release_dir "$name" "$sha")"
@@ -67,11 +75,14 @@ publish_release() {
 
     mkdir -p "$(release_root "$name")"
 
-    # Пересборка того же коммита должна давать чистый релиз.
+    # Не изменяем ни один опубликованный каталог, даже для того же SHA.
+    staging=$(mktemp -d "$(release_root "$name")/.${sha}.XXXXXX") || return 1
+    id=$sha
     if [[ -e $rel ]]; then
-        safe_rm_rf "$SANDBOX_SITES_ROOT" "$rel" || return 1
+        id="${staging##*/}"
+        id="${id#.}"
+        rel="$(release_dir "$name" "$id")"
     fi
-    mkdir -p "$rel"
 
     local pat
     for pat in "${SANDBOX_PUBLISH_EXCLUDES[@]}"; do
@@ -79,23 +90,27 @@ publish_release() {
     done
 
     # Без -L: симлинки копируются как симлинки, а не разыменовываются.
-    rsync -a --delete "${excludes[@]}" "$src/" "$rel/" || {
+    rsync -a --delete "${excludes[@]}" "$src/" "$staging/" || {
+        safe_rm_rf "$SANDBOX_SITES_ROOT" "$staging"
         warn "не удалось скопировать сборку в $rel"
         return 1
     }
+
+    validate_release_output "$staging" || { safe_rm_rf "$SANDBOX_SITES_ROOT" "$staging"; return 1; }
+    mv -T "$staging" "$rel" || return 1
 
     # rename(2) поверх существующего симлинка атомарен: читатель видит
     # либо старый релиз, либо новый, но никогда промежуточное состояние.
     tmp_link="$site/.current.$$.tmp"
     rm -f "$tmp_link"
-    ln -s "releases/$sha" "$tmp_link"
+    ln -s "releases/$id" "$tmp_link"
     mv -T "$tmp_link" "$(current_link "$name")" || {
         rm -f "$tmp_link"
         warn "не удалось переключить current на $sha"
         return 1
     }
 
-    record_release "$name" "$sha"
+    record_release "$name" "$id"
     prune_releases "$name" "$SANDBOX_KEEP_RELEASES"
 }
 
@@ -122,7 +137,7 @@ prune_releases() {
     local name=$1 keep=$2 current sha dir
     local -a protected=()
 
-    current=$(current_release_sha "$name" || true)
+    current=$(current_release_id "$name" || true)
     [[ -n $current ]] && protected+=( "$current" )
 
     local n=0
@@ -154,7 +169,7 @@ prune_releases() {
 rollback_release() {
     local name=$1 want=${2-} current target="" sha site tmp_link
     site="$(app_site_dir "$name")"
-    current=$(current_release_sha "$name" || true)
+    current=$(current_release_id "$name" || true)
 
     if [[ -n $want ]]; then
         [[ -d "$(release_dir "$name" "$want")" ]] || {

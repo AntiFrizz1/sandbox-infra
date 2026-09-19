@@ -64,10 +64,17 @@ assert_eq "показан адрес проекта" "да" \
 echo
 echo "== status-app.sh: снятый с раздачи проект =="
 rm "$SANDBOX_SITES_ROOT/$NAME/current"
+assert_eq "исторический успех после stop не означает активный релиз" "inactive" \
+    "$("$DEPLOY/status-app.sh" "$NAME" --check aaaa111 || true)"
 out=$("$DEPLOY/status-app.sh" "$NAME")
 assert_eq "сказано, что сайт не раздаётся" "да" \
     "$(grep -q 'активный релиз: нет' <<<"$out" && echo да || echo нет)"
 ln -s releases/aaaa111 "$SANDBOX_SITES_ROOT/$NAME/current"
+
+ln -sfn releases/bbbb222 "$SANDBOX_SITES_ROOT/$NAME/current"
+assert_eq "после rollback другой коммит не объявляется активным" "inactive" \
+    "$("$DEPLOY/status-app.sh" "$NAME" --check aaaa111 || true)"
+ln -sfn releases/aaaa111 "$SANDBOX_SITES_ROOT/$NAME/current"
 
 assert_fail "несуществующий проект" "$DEPLOY/status-app.sh" nosuch
 assert_fail "невалидное имя"        "$DEPLOY/status-app.sh" '../../etc'

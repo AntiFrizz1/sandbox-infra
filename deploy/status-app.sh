@@ -35,6 +35,13 @@ STATEDIR="$(app_state_dir "$NAME")"
 DEPLOYS="$STATEDIR/deploys.tsv"
 
 [[ -d "$REPO" ]] || die "проект '$NAME' не найден"
+lock_app "$NAME"
+[[ -d "$REPO" ]] || die "проект '$NAME' удалён"
+
+CURRENT="$(current_release_sha "$NAME" 2>/dev/null || true)"
+if [[ -f "$STATEDIR/docker-active-sha" ]]; then
+    CURRENT=$(cat "$STATEDIR/docker-active-sha")
+fi
 
 # last_record_for <sha> — строка из deploys.tsv для коммита, последняя попытка
 last_record_for() {
@@ -54,11 +61,13 @@ if [[ -n "$CHECK_SHA" ]]; then
         exit 2
     }
     outcome=$(cut -f4 <<<"$record")
+    if [[ "$outcome" == ok && "$CURRENT" != "$CHECK_SHA" ]]; then
+        echo "inactive"
+        exit 1
+    fi
     echo "$outcome"
     [[ "$outcome" == ok ]] && exit 0 || exit 1
 fi
-
-CURRENT="$(current_release_sha "$NAME" 2>/dev/null || true)"
 
 printf 'проект:        %s\n' "$NAME"
 printf 'адрес:         https://%s.%s\n' "$NAME" "$SANDBOX_DOMAIN"

@@ -90,9 +90,11 @@ caddy_validate() {
 }
 
 caddy_reload() {
+    # Базовый Caddyfile не содержит маршрутов из Docker labels. Обычный
+    # caddy reload затёр бы их. Перезапуск поручает генерацию самому плагину.
+    # Цена этого простого механизма — короткий перерыв при смене правил.
     ( cd "$SANDBOX_CADDY_DIR" && \
-      docker compose exec -T caddy \
-        caddy reload --adapter caddyfile --config /etc/caddy/Caddyfile )
+      docker compose restart caddy )
 }
 
 # sync_spa_config <app-name> <true|false> <domain>
@@ -143,6 +145,11 @@ sync_spa_config() {
 
     caddy_reload >/dev/null || {
         warn "[$name] caddy reload не удался"
+        if [[ -n $backup ]]; then
+            printf '%s\n' "$backup" > "$path"
+        else
+            rm -f "$path"
+        fi
         return 1
     }
 

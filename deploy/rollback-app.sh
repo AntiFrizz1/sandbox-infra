@@ -20,11 +20,13 @@ fi
 NAME="$1"
 require_valid_app_name "$NAME"
 WANT="${2-}"
+lock_app "$NAME"
+[[ -z $WANT || $WANT == --list || $WANT =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] || die "недопустимый релиз"
 
 SITE="$(app_site_dir "$NAME")"
 [[ -d "$SITE/releases" ]] || die "[$NAME] сохранённых релизов нет — откатываться некуда"
 
-CURRENT="$(current_release_sha "$NAME" 2>/dev/null || true)"
+CURRENT="$(current_release_id "$NAME" 2>/dev/null || true)"
 
 if [[ "$WANT" == "--list" ]]; then
     echo "Сохранённые релизы проекта '$NAME' (новые сверху):"
@@ -32,24 +34,12 @@ if [[ "$WANT" == "--list" ]]; then
         [[ -n "$sha" ]] || continue
         [[ -d "$(release_dir "$NAME" "$sha")" ]] || continue
         if [[ "$sha" == "$CURRENT" ]]; then
-            printf '  %s  <- текущий\n' "${sha:0:12}"
+            printf '  %s  <- текущий\n' "$sha"
         else
-            printf '  %s\n' "${sha:0:12}"
+            printf '  %s\n' "$sha"
         fi
     done < <(release_history "$NAME")
     exit 0
-fi
-
-# Откат берёт тот же замок, что и деплой: переключать релиз во время сборки
-# нельзя.
-STATEDIR="$(app_state_dir "$NAME")"
-mkdir -p "$STATEDIR"
-LOCK_FILE="$STATEDIR/lock"
-: > "$LOCK_FILE" 2>/dev/null || true
-if command -v flock >/dev/null 2>&1; then
-    exec 9>"$LOCK_FILE"
-    flock -w "${SANDBOX_LOCK_TIMEOUT:-600}" 9 \
-        || die "[$NAME] другая операция над проектом уже выполняется"
 fi
 
 # Полный sha принимается как есть; короткий — разворачивается по журналу.

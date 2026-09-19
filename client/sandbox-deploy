@@ -9,7 +9,7 @@
 #   sandbox-deploy status [имя]    активный релиз и последний деплой
 #   sandbox-deploy list            все проекты на VPS
 #   sandbox-deploy logs [имя] [sha|--list]
-#   sandbox-deploy redeploy [имя]  пересобрать текущий коммит
+#   sandbox-deploy redeploy [имя]  пересобрать серверную ветку без коммита
 #   sandbox-deploy rollback [имя] [sha|--list]
 #   sandbox-deploy stop [имя]
 #   sandbox-deploy remove [имя]
@@ -36,7 +36,8 @@ ASSUME_YES=false
 COMMIT_MSG=""
 
 # Неинтерактивный запуск не должен зависать на вопросе.
-[[ -t 0 ]] || ASSUME_YES=true
+NONINTERACTIVE=false
+[[ -t 0 ]] || NONINTERACTIVE=true
 
 die()  { echo "!! $*" >&2; exit 1; }
 log()  { echo "==> $*"; }
@@ -66,6 +67,7 @@ require_valid_app_name() {
 
 confirm() {  # confirm <вопрос> — true, если подтверждено
     [[ "$ASSUME_YES" == true ]] && return 0
+    [[ "$NONINTERACTIVE" != true ]] || die "Требуется явное подтверждение: передай --yes"
     local ans
     read -rp "$1 [y/N] " ans
     [[ "${ans:-n}" =~ ^[Yy]$ ]]
@@ -159,6 +161,9 @@ push_and_verify() {
         ok)
             log "Деплой успешен: ${sha:0:12}"
             ;;
+        inactive)
+            die "Коммит сейчас не активен. Выполни: sandbox-deploy redeploy $name"
+            ;;
         no-record)
             die "Пуш принят, но сервер не зарегистрировал деплой этого коммита.
    Посмотри: sandbox-deploy logs $name"
@@ -228,10 +233,8 @@ case "$COMMAND" in
         in_git_repo || die "redeploy выполняется из git-репозитория проекта"
         APP_NAME=$(resolve_app_name "${1-}")
         require_valid_app_name "$APP_NAME"
-        # Пустой коммит — единственный способ заставить git отправить тот же
-        # код заново, не трогая рабочее дерево.
-        git commit --allow-empty -qm "redeploy $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-        push_and_verify "$APP_NAME"
+        # Пересобирается серверная ветка; индекс и история клиента не меняются.
+        remote_run /srv/deploy/redeploy-app.sh "$APP_NAME"
         ;;
 
     push)
@@ -259,7 +262,7 @@ case "$COMMAND" in
                 log "Имя взято из remote '$REMOTE_NAME': $APP_NAME"
             else
                 APP_NAME="$(basename "$(pwd)")"
-                if [[ "$ASSUME_YES" != true ]]; then
+                if [[ "$ASSUME_YES" != true && "$NONINTERACTIVE" != true ]]; then
                     read -rp "Имя проекта на sandbox [$APP_NAME]: " INPUT_NAME
                     APP_NAME="${INPUT_NAME:-$APP_NAME}"
                 fi

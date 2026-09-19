@@ -158,6 +158,8 @@ fi
 # ============================== state =======================================
 if [[ "$COMMAND" == state ]]; then
     log "Создаю серверное состояние проектов"
+    run mkdir -p "$SANDBOX_STATE_ROOT/.locks"
+    run set_deploy_owner "$SANDBOX_STATE_ROOT" "$SANDBOX_STATE_ROOT/.locks"
     while IFS= read -r name; do
         [[ -n "$name" ]] || continue
         is_valid_app_name "$name" || {
@@ -170,7 +172,11 @@ if [[ "$COMMAND" == state ]]; then
         type=$(migrate_detect_type "$name")
 
         if [[ -f "$state/config" ]]; then
-            echo "   $name: конфиг уже есть, пропускаю"
+            echo "   $name: конфиг уже есть, содержимое сохраняю"
+            run set_deploy_owner "$state" "$state/config"
+            for owned in "$state/logs" "$state/releases.tsv" "$state/deploys.tsv" "$state/env"; do
+                [[ ! -e $owned ]] || run set_deploy_owner "$owned"
+            done
             continue
         fi
 
@@ -221,7 +227,9 @@ if [[ "$COMMAND" == state ]]; then
             run cp -a "$work/.env" "$state/env"
         fi
 
-        run touch "$state/lock"
+        run touch "$(app_lock_file "$name")"
+        run set_deploy_owner "$state" "$state/logs" "$state/config" "$(app_lock_file "$name")"
+        [[ ! -f "$state/env" ]] || run set_deploy_owner "$state/env"
     done < <(list_projects)
 
     echo
@@ -265,7 +273,9 @@ if [[ "$COMMAND" == sites ]]; then
         [[ -d "$site" ]] || continue
 
         if [[ -L "$site/current" ]]; then
-            echo "   $name: уже мигрирован, пропускаю"
+            echo "   $name: уже мигрирован, содержимое сохраняю"
+            run set_deploy_owner "$site" "$site/releases" "$site/current"
+            [[ ! -f "$(releases_log "$name")" ]] || run set_deploy_owner "$(releases_log "$name")"
             continue
         fi
 
@@ -288,6 +298,8 @@ if [[ "$COMMAND" == sites ]]; then
             # которая работала до миграции.
             mkdir -p "$(app_state_dir "$name")"
             record_release "$name" "$stamp"
+            set_deploy_owner "$site" "$site/releases" "$site/current" \
+                "$(app_state_dir "$name")" "$(releases_log "$name")"
         fi
     done < <(list_projects)
 

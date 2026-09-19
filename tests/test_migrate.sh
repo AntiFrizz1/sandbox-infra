@@ -86,7 +86,7 @@ assert_exists "api: прежний .env остался на месте для о
     "$SANDBOX_APPS_ROOT/api/.env"
 
 assert_missing "проект с невалидным именем пропущен" "$SANDBOX_STATE_ROOT/Bad_Name"
-assert_exists  "замок создан" "$SANDBOX_STATE_ROOT/plain/lock"
+assert_exists  "замок создан" "$SANDBOX_STATE_ROOT/.locks/plain.lock"
 
 echo
 echo "== state идемпотентен =="

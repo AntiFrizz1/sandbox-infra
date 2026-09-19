@@ -23,7 +23,7 @@ printf '\n=== shellcheck ===\n'
 mapfile -t scripts < <(
     cd "$ROOT" && {
         find deploy tests -name '*.sh' -type f
-        printf '%s\n' bootstrap.sh client/sandbox-deploy
+        printf '%s\n' bootstrap.sh update-infra.sh client/sandbox-deploy
     }
 )
 

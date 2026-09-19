@@ -21,6 +21,7 @@ fi
 
 NAME="$1"
 require_valid_app_name "$NAME"
+lock_app "$NAME"
 
 REPO="$(app_repo_dir  "$NAME")"
 WORKDIR="$(app_work_dir "$NAME")"
@@ -39,6 +40,7 @@ case "$PROJECT_TYPE" in
         # из basename каталога, и любой переезд каталога осиротил бы
         # существующие контейнеры и volumes.
         (cd "$WORKDIR" && COMPOSE_PROJECT_NAME="$NAME" docker compose down)
+        rm -f "$(app_state_dir "$NAME")/docker-active-sha"
         ;;
     dockerfile-only)
         die "[$NAME] в проекте есть Dockerfile, но нет compose-файла — останавливать нечего.
@@ -62,5 +64,5 @@ case "$PROJECT_TYPE" in
 esac
 
 log "[$NAME] остановлен."
-echo "   Поднять заново: git push prod main"
+echo "   Поднять заново: sandbox-deploy redeploy $NAME"
 echo "   Либо вернуть последний релиз без пересборки: rollback-app.sh $NAME"

@@ -86,6 +86,9 @@ setup_installed
 assert_ok "обновление Caddy отрабатывает" run_update --caddy-only -y
 
 CF="$SANDBOX_CADDY_DIR/Caddyfile"
+HOST_PATTERN=$(sed -n 's/.*header_regexp app Host //p' "$CF")
+assert_ok "матчер принимает реальный hostname" bash -c '[[ $1 =~ $2 ]]' _ "demo.$REAL_DOMAIN" "$HOST_PATTERN"
+assert_fail "матчер отвергает шаблонный hostname" bash -c '[[ $1 =~ $2 ]]' _ demo.sandbox.example.com "$HOST_PATTERN"
 assert_eq "домен сохранён"  "да" "$(grep -q "\*\.$REAL_DOMAIN {" "$CF" && echo да || echo нет)"
 assert_eq "email сохранён"  "да" "$(grep -q "email $REAL_EMAIL" "$CF" && echo да || echo нет)"
 assert_eq "плейсхолдер домена не просочился" "нет" \

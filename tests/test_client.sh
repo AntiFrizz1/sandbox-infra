@@ -87,8 +87,7 @@ git -C "$WT" checkout -q -b main
 : > "$WT/f"; git -C "$WT" add -A; git -C "$WT" commit -qm init
 git -C "$WT" remote add prod "ssh://deploy@example.invalid/srv/git/wt-project.git"
 git -C "$WT" worktree add -q "$SB/wt-linked" -b side
-assert_eq "в worktree .git — файл, а не каталог" \
-    "обычный файл" "$(stat -c %F "$SB/wt-linked/.git" 2>/dev/null || stat -f %HT "$SB/wt-linked/.git")"
+assert_ok "в worktree .git — файл, а не каталог" test -f "$SB/wt-linked/.git"
 
 : > "$SB/ssh-calls.log"
 ( cd "$SB/wt-linked" && run_client status >/dev/null )
@@ -149,6 +148,8 @@ assert_eq "результат проверяется через --check" "да" 
 echo
 echo "== неинтерактивный режим =="
 : > "$SB/ssh-calls.log"
+assert_fail "remove без --yes при EOF отклонён" run_client remove my-app </dev/null
+assert_eq "удаление не отправлено по ssh" "" "$(cat "$SB/ssh-calls.log")"
 assert_ok "remove с -y не спрашивает подтверждения" \
     run_client remove 'my-app' -y
 assert_eq "вызван remove-app.sh --force" "да" \
@@ -156,6 +157,16 @@ assert_eq "вызван remove-app.sh --force" "да" \
 
 echo
 echo "== прочие команды =="
+: > "$SB/ssh-calls.log"
+echo private > "$P/staged"
+git -C "$P" add staged
+BEFORE=$(git -C "$P" rev-parse HEAD)
+INDEX_BEFORE=$(git -C "$P" diff --cached)
+( cd "$P" && run_client redeploy >/dev/null )
+assert_eq "redeploy не меняет HEAD" "$BEFORE" "$(git -C "$P" rev-parse HEAD)"
+assert_eq "redeploy сохраняет индекс" "$INDEX_BEFORE" "$(git -C "$P" diff --cached)"
+assert_eq "пересборка вызвана на сервере" \
+    "deploy@example.invalid /srv/deploy/redeploy-app.sh proj" "$(cat "$SB/ssh-calls.log")"
 : > "$SB/ssh-calls.log"
 assert_ok "list" run_client list
 assert_eq "вызван list-apps.sh" "deploy@example.invalid /srv/deploy/list-apps.sh" \

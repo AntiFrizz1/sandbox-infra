@@ -32,6 +32,7 @@ if [[ "$NAME_SEEN" != true ]]; then
 fi
 
 require_valid_app_name "$NAME"
+lock_app "$NAME"
 
 REPO="$(app_repo_dir "$NAME")"
 

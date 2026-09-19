@@ -61,18 +61,9 @@ SHORT_SHA="${NEWREV:0:12}"
 # --- 2. Блокировка ----------------------------------------------------------
 # Один замок на проект: деплой, остановка, откат и удаление не должны
 # пересекаться.
+lock_app "$APP_NAME"
+[[ -d "$REPO_DIR" ]] || die "[$APP_NAME] репозиторий удалён"
 mkdir -p "$STATEDIR/logs"
-LOCK_FILE="$STATEDIR/lock"
-: > "$LOCK_FILE" 2>/dev/null || true
-
-if command -v flock >/dev/null 2>&1; then
-    exec 9>"$LOCK_FILE"
-    if ! flock -w "${SANDBOX_LOCK_TIMEOUT:-600}" 9; then
-        die "[$APP_NAME] другая операция над проектом уже выполняется — деплой отменён"
-    fi
-else
-    warn "[$APP_NAME] flock недоступен, параллельные операции не сериализуются"
-fi
 
 # --- 3. Журнал и исход ------------------------------------------------------
 LOG_FILE="$STATEDIR/logs/$NEWREV.log"
@@ -146,6 +137,7 @@ case "$PROJECT_TYPE" in
 
         # Имя compose-проекта фиксируется явно, чтобы контейнеры и volumes
         # не зависели от basename каталога.
+        rm -f "$STATEDIR/docker-active-sha"
         ( cd "$WORKDIR" && COMPOSE_PROJECT_NAME="$APP_NAME" docker compose up -d --build )
 
         if [[ -n "$PROJECT_HEALTH_URL" ]]; then
@@ -161,6 +153,7 @@ case "$PROJECT_TYPE" in
             done
             echo "   приложение отвечает"
         fi
+        printf '%s\n' "$NEWREV" > "$STATEDIR/docker-active-sha"
         ;;
 
     static|node)
@@ -184,6 +177,7 @@ case "$PROJECT_TYPE" in
         echo "   публикую $PROJECT_PUBLISH_DIR → releases/$SHORT_SHA"
         publish_release "$APP_NAME" "$NEWREV" "$PUBLISH_SRC" \
             || die "[$APP_NAME] публикация релиза не удалась"
+        rm -f "$STATEDIR/docker-active-sha"
 
         # Релиз уже переключён и сайт работает, поэтому проблема с правилами
         # раздачи не должна помечать деплой провалившимся — только предупредить.

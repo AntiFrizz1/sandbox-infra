@@ -39,15 +39,16 @@
 /srv/state/<name>/                  НОВОЕ: серверное состояние проекта
     config                          пер-проектный конфиг (см. ниже)
     env                             серверные секреты, подкладываются в сборку
-    lock                            flock-файл для сериализации операций
     deploys.tsv                     история: ts, ref, sha, outcome, duration
     releases.tsv                    порядок успешных релизов (откат и ротация)
     logs/<sha>.log                  лог сборки конкретного коммита
     build/                          одноразовое дерево сборки статики (чистится)
 
 /srv/sites/<name>/                  НОВОЕ: релизы статики
-    releases/<sha>/                 собранный вывод
+    releases/<sha>[.<suffix>]/      собранный вывод (отдельная попытка сборки)
     current -> releases/<sha>       ОТНОСИТЕЛЬНЫЙ симлинк
+
+/srv/state/.locks/<name>.lock       постоянный lock, переживает remove
 
 /srv/caddy/
     Caddyfile                       правится update-скриптом только после бэкапа
@@ -203,6 +204,11 @@ git remote set-url prod ssh://deploy@sandbox.<домен>/srv/git/new-name.git
 
 **Команда:**
 
+Скрипт назначает владельца `deploy:deploy` новым каталогам и файлам.
+Повторный запуск исправляет владельцев каталогов от прежней миграции.
+Обновляй скрипты только после завершения всех старых операций: путь
+блокировки перенесён из `<name>/lock` в `.locks/<name>.lock`.
+
 ```sh
 sudo /srv/deploy/migrate.sh state --dry-run   # сначала посмотреть, что будет сделано
 sudo /srv/deploy/migrate.sh state
@@ -229,8 +235,9 @@ if [ -f "/srv/apps/$NAME/.env" ] && [ ! -e "/srv/state/$NAME/env" ]; then
     cp -a "/srv/apps/$NAME/.env" "/srv/state/$NAME/env"
 fi
 
-: > "/srv/state/$NAME/lock"
-chown deploy:deploy "/srv/state/$NAME/lock"
+install -d -o deploy -g deploy /srv/state/.locks
+: > "/srv/state/.locks/$NAME.lock"
+chown deploy:deploy "/srv/state/.locks/$NAME.lock"
 ```
 
 Важно: `.env` именно **копируется**, а не перемещается. Docker-проекты продолжают читать `/srv/apps/<name>/.env` до конца миграции, и при откате он остаётся на месте.
@@ -390,7 +397,7 @@ docker run --rm \
 
 ```sh
 cd /srv/caddy && docker compose up -d
-docker compose exec caddy caddy reload --adapter caddyfile --config /etc/caddy/Caddyfile
+docker compose restart caddy
 ```
 
 Сертификаты переиспользуются из volume `caddy_data` — wildcard не перевыпускается, повторного DNS-01 не будет.
@@ -407,7 +414,7 @@ git push prod-infra main     # либо scp/rsync репозитория sandbox
 
 # на VPS
 cd /path/to/sandbox-infra
-sudo ./update-infra.sh       # копирует deploy/*.sh, НЕ трогает Caddyfile и .env
+sudo ./update-infra.sh --scripts-only
 ```
 
 **Ручной эквивалент:**
@@ -484,7 +491,7 @@ sandbox-deploy migration-smoke-test
 **Существующий проект переживает передеплой.** Взять один реальный статический проект, сделать пустой коммит и запушить:
 
 ```sh
-git commit --allow-empty -m "post-migration redeploy check" && git push prod main
+sandbox-deploy redeploy
 ```
 
 Ожидание: сайт отдаёт то же содержимое, что и до миграции (`publish_dir=.` сохранил поведение), появился новый релиз, `current` переключился.
@@ -512,8 +519,7 @@ sudo cp -a /root/deploy-backup-<ts> /srv/deploy
 
 ```sh
 sudo cp -a /srv/caddy/Caddyfile.bak-<ts> /srv/caddy/Caddyfile
-cd /srv/caddy && docker compose up -d && docker compose exec caddy caddy reload \
-    --adapter caddyfile --config /etc/caddy/Caddyfile
+cd /srv/caddy && docker compose up -d && docker compose restart caddy
 ```
 
 **Откат фазы 3 (раскладка статики):** вернуть плоскую структуру из релиза, на который смотрит `current`:
@@ -610,7 +616,7 @@ sudo sed -i 's|^spa=.*|spa=true|' /srv/state/<name>/config
 
 - Выпуск и переиспользование wildcard-сертификата, DNS-01 через Timeweb.
 - Разрешение относительного симлинка `current` внутри контейнера Caddy (снаружи проверено, внутри bind-mount — нет).
-- `caddy reload` на работающем прокси с живым трафиком.
+- Перезапуск `caddy-docker-proxy` с живым трафиком (ожидается короткий перерыв).
 - `caddy validate` с боевым образом `sandbox-caddy:latest` — локально проверялось на `caddy:latest` с заменой `tls` на `internal`, потому что плагин timeweb в официальном образе отсутствует.
 - Сохранность docker volumes и bind-mount данных после фаз 1–5.
 - `docker compose` с фиксированным `COMPOSE_PROJECT_NAME` на уже существующих контейнерах.

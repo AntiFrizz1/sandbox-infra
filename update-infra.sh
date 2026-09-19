@@ -98,6 +98,7 @@ if [[ "$DO_CADDY" == true ]]; then
 
     log "Обновляю конфигурацию Caddy в $SANDBOX_CADDY_DIR"
     run mkdir -p "$SANDBOX_CADDY_SPA_DIR"
+    run set_deploy_owner "$SANDBOX_CADDY_SPA_DIR"
 
     if [[ ! -f "$LIVE" ]]; then
         warn "действующего Caddyfile нет — копирую шаблон как есть"
@@ -118,9 +119,14 @@ if [[ "$DO_CADDY" == true ]]; then
 
         NEW="$(mktemp)"
         trap 'rm -f "$NEW"' EXIT
-        sed -e "s/sandbox\.example\.com/$DOMAIN/g" \
-            -e "s/you@example\.com/${EMAIL:-you@example.com}/g" \
-            "$TEMPLATE" > "$NEW"
+        # Обычный hostname и hostname внутри regexp имеют разное экранирование.
+        # Буквальная подстановка не интерпретирует &, / и обратные слеши email.
+        while IFS= read -r line || [[ -n $line ]]; do
+            line=${line//sandbox\\.example\\.com/"${DOMAIN//./\\.}"}
+            line=${line//sandbox.example.com/"$DOMAIN"}
+            line=${line//you@example.com/"${EMAIL:-you@example.com}"}
+            printf '%s\n' "$line"
+        done < "$TEMPLATE" > "$NEW"
 
         if cmp -s "$NEW" "$LIVE"; then
             echo "   конфигурация уже актуальна, ничего не меняю"
