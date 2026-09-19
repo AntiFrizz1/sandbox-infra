@@ -9,6 +9,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=deploy/lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=deploy/lib/project.sh
+source "$SCRIPT_DIR/lib/project.sh"
 
 if [[ $# -ne 1 ]]; then
     echo "Usage: $0 <app-name>" >&2
@@ -26,14 +28,28 @@ if [[ ! -d "$REPO" ]]; then
     die "$REPO не найден — проект '$NAME' не существует"
 fi
 
-if [[ -f "$WORKDIR/docker-compose.yml" || -f "$WORKDIR/Dockerfile" ]]; then
-    log "[$NAME] Останавливаю Docker-контейнеры"
-    (cd "$WORKDIR" && docker compose down)
-elif [[ -d "$SITEDIR" ]]; then
-    log "[$NAME] Убираю статику из раздачи"
-    safe_rm_rf "$SANDBOX_SITES_ROOT" "$SITEDIR" || die "[$NAME] остановка прервана"
-else
-    die "[$NAME] Нечего останавливать — ни Docker-проекта, ни статики не найдено"
-fi
+load_project_config "$NAME" "$WORKDIR" || die "[$NAME] конфиг проекта некорректен"
+
+case "$PROJECT_TYPE" in
+    docker)
+        log "[$NAME] Останавливаю Docker-контейнеры ($PROJECT_COMPOSE_FILE)"
+        # Имя compose-проекта фиксируется явно: по умолчанию оно выводится
+        # из basename каталога, и любой переезд каталога осиротил бы
+        # существующие контейнеры и volumes.
+        (cd "$WORKDIR" && COMPOSE_PROJECT_NAME="$NAME" docker compose down)
+        ;;
+    dockerfile-only)
+        die "[$NAME] в проекте есть Dockerfile, но нет compose-файла — останавливать нечего.
+   Добавь docker-compose.yml, либо укажи тип явно в .sandbox.conf"
+        ;;
+    *)
+        if [[ -d "$SITEDIR" ]]; then
+            log "[$NAME] Убираю статику из раздачи"
+            safe_rm_rf "$SANDBOX_SITES_ROOT" "$SITEDIR" || die "[$NAME] остановка прервана"
+        else
+            die "[$NAME] Нечего останавливать — статика не найдена ($SITEDIR)"
+        fi
+        ;;
+esac
 
 log "[$NAME] остановлен. git push prod main поднимет проект заново."

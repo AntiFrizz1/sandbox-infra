@@ -7,6 +7,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=deploy/lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=deploy/lib/project.sh
+source "$SCRIPT_DIR/lib/project.sh"
 
 FORCE=false
 NAME=""
@@ -50,9 +52,11 @@ if [[ "$FORCE" != true ]]; then
     [[ "${ans:-n}" =~ ^[Yy]$ ]] || { echo "Отменено."; exit 0; }
 fi
 
-if [[ -f "$WORKDIR/docker-compose.yml" || -f "$WORKDIR/Dockerfile" ]]; then
+# Тип определяется общей библиотекой; ошибка конфига здесь не должна мешать
+# удалению, поэтому она только предупреждает.
+if load_project_config "$NAME" "$WORKDIR" 2>/dev/null && [[ "$PROJECT_TYPE" == docker ]]; then
     log "[$NAME] Удаляю Docker-контейнеры, volumes и локальные образы"
-    (cd "$WORKDIR" && docker compose down -v --rmi local)
+    (cd "$WORKDIR" && COMPOSE_PROJECT_NAME="$NAME" docker compose down -v --rmi local)
 fi
 
 # Каждый путь проверяется относительно своего корня по отдельности:
