@@ -31,7 +31,7 @@ export PATH="$SB/bin:$PATH" DOCKER_LOG="$SB/docker.log"
 IMAGE="worker@sha256:$(printf 'a%.0s' {1..64})"
 load_execution_policy() {
     RUN_PROFILE=worker RUN_IMAGE=$IMAGE RUN_TIMEOUT=20 RUN_MEMORY=256 RUN_PIDS=32 RUN_CPUS=1
-    RUN_FETCH_NETWORK=sandbox_build RUN_NPM_REGISTRY=https://registry.example.test/
+    RUN_FETCH_NETWORK=sandbox_build RUN_NPM_REGISTRY=https://registry.example.test/ RUN_OUTPUT_MB=2048
 }
 prepare_state demo
 mkdir "$SB/state/demo/build"

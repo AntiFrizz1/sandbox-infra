@@ -224,3 +224,30 @@ set_env_value() {
     rm -f "$tmp"
     return 1
 }
+
+# free_mb <path> — free megabytes on the filesystem holding path.
+free_mb() { df -Pm -- "$1" 2>/dev/null | awk 'NR == 2 { print $4 }'; }
+
+# require_free_space <path>
+# A build that fills the disk takes the proxy, logs and every other project
+# down with it; refuse to start one below SANDBOX_MIN_FREE_MB.
+require_free_space() {
+    local free need=${SANDBOX_MIN_FREE_MB:-1024}
+    free=$(free_mb "$1")
+    [[ $free =~ ^[0-9]+$ ]] || { warn "не удалось узнать свободное место для $1"; return 1; }
+    (( free >= need )) || { warn "свободно ${free} МБ на разделе с $1, нужно не меньше ${need}"; return 1; }
+}
+
+# install_maintenance_timer <deploy-source-dir>
+# Installs and enables sandbox-maintenance.timer. Without root or systemd
+# (containers, tests) it only says so: retention then has to be run by hand.
+install_maintenance_timer() {
+    local unitdir=${SANDBOX_SYSTEMD_DIR:-/etc/systemd/system}
+    if (( EUID != 0 )) || ! command -v systemctl >/dev/null 2>&1 || [[ ! -d $unitdir ]]; then
+        warn "systemd недоступен — таймер обслуживания не установлен; запускай maintenance.sh вручную"
+        return 0
+    fi
+    install -m 644 -o root -g root "$1/systemd/sandbox-maintenance.service" \
+        "$1/systemd/sandbox-maintenance.timer" "$unitdir/" || return 1
+    systemctl daemon-reload && systemctl enable --now sandbox-maintenance.timer
+}

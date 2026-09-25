@@ -67,6 +67,7 @@ install -m 755 -o root -g root "$SCRIPT_DIR"/deploy/*.sh /srv/deploy/
 install -m 644 -o root -g root "$SCRIPT_DIR"/deploy/lib/*.sh /srv/deploy/lib/
 
 install -m 644 -o root -g root "$SCRIPT_DIR/deploy/bounded-log.py" "$SCRIPT_DIR/deploy/lint-compose.py" /srv/deploy/
+install_maintenance_timer "$SCRIPT_DIR/deploy"
 
 # --- 4a. Общий конфиг: домен и SSH-хост ---
 # Пишется один раз, чтобы new-app.sh печатал реальный домен, а не плейсхолдер.

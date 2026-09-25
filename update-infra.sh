@@ -85,6 +85,7 @@ if [[ "$DO_SCRIPTS" == true ]]; then
         if id deploy &>/dev/null; then
             chown -R root:root "$SANDBOX_DEPLOY_DIR"
         fi
+        install_maintenance_timer "$SRC_DIR/deploy" || warn "таймер обслуживания не установлен"
     fi
     echo "   готово"
 fi

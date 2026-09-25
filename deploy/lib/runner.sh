@@ -37,18 +37,37 @@ load_execution_policy() {
     RUN_MEMORY=$(read_conf_value "$path" memory_mb || echo 512)
     RUN_PIDS=$(read_conf_value "$path" pids || echo 128)
     RUN_CPUS=$(read_conf_value "$path" cpus || echo 1)
+    RUN_OUTPUT_MB=$(read_conf_value "$path" output_mb || echo 2048)
     RUN_FETCH_NETWORK=$(read_conf_value "$path" fetch_network || echo none)
     RUN_NPM_REGISTRY=$(read_conf_value "$path" npm_registry || echo https://registry.npmjs.org/)
     [[ $RUN_PROFILE == worker ]] || { warn "[$name] execution policy profile must be worker"; return 1; }
     [[ $RUN_IMAGE =~ ^[^[:space:]]+@sha256:[a-f0-9]{64}$ ]] || return 1
     local n
-    for n in "$RUN_TIMEOUT" "$RUN_MEMORY" "$RUN_PIDS" "$RUN_CPUS"; do
+    for n in "$RUN_TIMEOUT" "$RUN_MEMORY" "$RUN_PIDS" "$RUN_CPUS" "$RUN_OUTPUT_MB"; do
         [[ $n =~ ^[1-9][0-9]{0,5}$ ]] || return 1
     done
     [[ $RUN_NPM_REGISTRY =~ ^https://[A-Za-z0-9._~:/%@+-]+$ ]] \
         || { warn "[$name] npm_registry must be an https URL"; return 1; }
     validate_fetch_network "$RUN_FETCH_NETWORK" \
         || { warn "[$name] fetch_network must be none or a network labelled $SANDBOX_FETCH_NETWORK_LABEL"; return 1; }
+}
+
+# watch_output <cid> <flag-file>
+# The output is a host bind mount, so neither the memory limit nor a tmpfs
+# bounds it. Without filesystem quotas the dispatcher polls instead: over
+# RUN_OUTPUT_MB, or below SANDBOX_MIN_FREE_MB free, the container is killed.
+watch_output() {
+    local cid=$1 flag=$2 used free
+    while sleep "${SANDBOX_WATCH_INTERVAL:-5}"; do
+        used=$(du -sm -- "$WORKER_OUTPUT" 2>/dev/null | cut -f1)
+        free=$(free_mb "$WORKER_OUTPUT")
+        [[ $used =~ ^[0-9]+$ && $free =~ ^[0-9]+$ ]] || continue
+        if (( used > RUN_OUTPUT_MB || free < ${SANDBOX_MIN_FREE_MB:-1024} )); then
+            printf 'output %s MB (limit %s), free %s MB\n' "$used" "$RUN_OUTPUT_MB" "$free" > "$flag"
+            docker kill "$cid" >/dev/null 2>&1
+            return 0
+        fi
+    done
 }
 
 # worker_phase <fetch|build> <network> [docker-args...] -- [worker-args...]
@@ -70,12 +89,24 @@ worker_phase() {
         "${extra[@]}" "$RUN_IMAGE" "$mode" "$@") || return 1
     # Killing the CLI alone is insufficient: the container is removed below
     # and, on any abort, by the caller's EXIT trap.
+    local flag watcher
+    flag=$(mktemp "$WORKER_OUTPUT.limit.XXXXXX") || return 1
+    rm -f "$flag"
+    watch_output "$cid" "$flag" &
+    watcher=$!
     timeout --signal=TERM --kill-after=5 "$RUN_TIMEOUT" docker start -a "$cid" || rc=$?
+    kill "$watcher" 2>/dev/null
+    wait "$watcher" 2>/dev/null
     if (( rc == 0 )); then
         rc=$(docker inspect --format '{{.State.ExitCode}}' "$cid") || return 1
     fi
     docker rm -f "$cid" >/dev/null 2>&1 || true
     cid=""
+    if [[ -f $flag ]]; then
+        warn "[$WORKER_NAME] worker $mode stopped: $(cat "$flag")"
+        rm -f "$flag"
+        return 1
+    fi
     (( rc == 0 )) || { warn "[$WORKER_NAME] worker $mode failed/timeout ($rc)"; return 1; }
 }
 

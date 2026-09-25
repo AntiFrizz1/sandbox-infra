@@ -111,6 +111,7 @@ trap on_exit EXIT
 exec > >(python3 "$SCRIPT_DIR/bounded-log.py" "$LOG_FILE" 1048576) 2>&1
 
 echo "→ [$APP_NAME] деплой $DEPLOY_BRANCH @ $SHORT_SHA"
+require_free_space "$STATEDIR" || die "[$APP_NAME] деплой отложен: на диске мало места"
 
 # --- 4. Чистое дерево нужного коммита ---------------------------------------
 # git archive переносит ровно содержимое коммита. Именно это убирает

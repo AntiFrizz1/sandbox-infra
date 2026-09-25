@@ -270,6 +270,14 @@ assert_eq "current не изменился" "$BEFORE" "$(current_sha)"
 assert_exists "сайт на месте" "$SITE/current/index.html"
 
 echo
+echo "== мало места — деплой откладывается =="
+commit "НЕТ-МЕСТА"
+out=$(SANDBOX_MIN_FREE_MB=999999999 git -C "$WORK" push prod main 2>&1 || true)
+assert_eq "хук сообщает о нехватке места" "да" \
+    "$(grep -q 'мало места' <<< "$out" && echo да || echo нет)"
+assert_eq "сайт остался на прежней версии" "$BEFORE" "$(current_sha)"
+
+echo
 echo "== docker-проект без root-политики не запускается =="
 printf 'type=docker\n' > "$WORK/.sandbox.conf"
 printf 'services:\n  app:\n    image: busybox\n    privileged: true\n' > "$WORK/compose.yml"

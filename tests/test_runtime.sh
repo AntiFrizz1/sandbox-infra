@@ -26,7 +26,7 @@ trap cleanup EXIT
 docker run --rm -i -v "$ROOT:/repo:ro" debian:bookworm-slim bash -s >"$SB/owners.log" 2>&1 <<'SCRIPT'
 set -euo pipefail
 apt-get update -qq
-apt-get install -y -qq rsync
+apt-get install -y -qq rsync python3 git >/dev/null
 export SANDBOX_GIT_ROOT=/tmp/test/git SANDBOX_APPS_ROOT=/tmp/test/apps
 export SANDBOX_SITES_ROOT=/tmp/test/sites SANDBOX_STATE_ROOT=/tmp/test/state
 export SANDBOX_DEPLOY_OWNER=nobody:nogroup
@@ -58,6 +58,15 @@ SANDBOX_CADDY_DIR=/tmp/test/caddy bash /repo/deploy/repair-permissions.sh
 su -s /bin/sh nobody -c 'test -r /tmp/test/caddy/.env'
 su -s /bin/sh daemon -c 'test ! -r /tmp/test/caddy/.env'
 su -s /bin/sh daemon -c 'test ! -r /tmp/test/state/demo/env && test ! -r /tmp/test/state/demo/logs/new.log'
+# Maintenance as root prunes root-owned backups but rewrites project state
+# only as the deploy user, so nothing in state becomes root-owned.
+su -s /bin/bash nobody -c 'for i in $(seq 1 205); do printf "d\tmain\t%x\tok\t1s\n" "$i"; done > /tmp/test/state/demo/deploys.tsv'
+mkdir -p /tmp/test/backups
+rm /tmp/test/state/demo/logs/new.log
+SANDBOX_MIGRATION_BACKUPS=/tmp/test/backups SANDBOX_PRUNE_DOCKER=false SANDBOX_ALERT_FREE_MB=1 \
+    bash /repo/deploy/maintenance.sh
+[[ $(wc -l < /tmp/test/state/demo/deploys.tsv) == 200 ]]
+[[ -z $(find /tmp/test/state/demo -user root) ]]
 # Повторная миграция исправляет владельцев после прежней версии скрипта.
 chown root:root "$SANDBOX_STATE_ROOT/demo" "$SANDBOX_SITES_ROOT/demo/releases"
 bash /repo/deploy/migrate.sh state

@@ -1,0 +1,11 @@
+[Unit]
+Description=Sandbox retention: deploy logs, interrupted deploys, git gc, build cache, migration backups
+Documentation=file:///srv/deploy/maintenance.sh
+
+[Service]
+Type=oneshot
+# Runs as root only to prune root-owned migration backups; the rest re-runs
+# as the deploy user. Exit status 2 means low disk space.
+ExecStart=/srv/deploy/maintenance.sh
+Nice=10
+IOSchedulingClass=idle

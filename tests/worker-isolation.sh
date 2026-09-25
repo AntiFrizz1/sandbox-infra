@@ -20,7 +20,7 @@ IMAGE=$(docker image inspect sandbox-security-worker:candidate --format '{{index
 # Explicit fixture policy: the real loader is checked below, without giving the host user root.
 load_execution_policy() {
     RUN_PROFILE=worker RUN_IMAGE=$IMAGE RUN_TIMEOUT=20 RUN_MEMORY=256 RUN_PIDS=32 RUN_CPUS=1
-    RUN_FETCH_NETWORK=none RUN_NPM_REGISTRY=https://registry.npmjs.org/
+    RUN_FETCH_NETWORK=none RUN_NPM_REGISTRY=https://registry.npmjs.org/ RUN_OUTPUT_MB=2048
 }
 cmd='test "$(cat /sys/fs/cgroup/memory.max)" = 268435456 && test "$(cat /sys/fs/cgroup/pids.max)" = 32 && grep -q "NoNewPrivs:.*1" /proc/self/status && test ! -e /var/run/docker.sock && test ! -e /srv/state && test ! -e /srv/sites && test ! -e /root/.ssh && test ! -e /srv/deploy && test ! -e /source && mkdir dist && echo SAFE > dist/index.html'
 run_worker demo "$SRC" "$OUT" "$cmd" > "$SB/build.log" 2>&1 || { cat "$SB/build.log"; exit 1; }
@@ -30,14 +30,14 @@ safe_rm_rf "$SB/state/demo" "$OUT"
 # Timeout leaves no container/cgroup and a subsequent attempt can succeed.
 load_execution_policy() {
     RUN_PROFILE=worker RUN_IMAGE=$IMAGE RUN_TIMEOUT=2 RUN_MEMORY=256 RUN_PIDS=32 RUN_CPUS=1
-    RUN_FETCH_NETWORK=none RUN_NPM_REGISTRY=https://registry.npmjs.org/
+    RUN_FETCH_NETWORK=none RUN_NPM_REGISTRY=https://registry.npmjs.org/ RUN_OUTPUT_MB=2048
 }
 if run_worker demo "$SRC" "$OUT" 'sleep 300 & wait' > "$SB/timeout.log" 2>&1; then exit 1; fi
 [[ -z $(docker ps -aq --filter "ancestor=$IMAGE") ]]
 safe_rm_rf "$SB/state/demo" "$OUT"
 load_execution_policy() {
     RUN_PROFILE=worker RUN_IMAGE=$IMAGE RUN_TIMEOUT=20 RUN_MEMORY=256 RUN_PIDS=32 RUN_CPUS=1
-    RUN_FETCH_NETWORK=none RUN_NPM_REGISTRY=https://registry.npmjs.org/
+    RUN_FETCH_NETWORK=none RUN_NPM_REGISTRY=https://registry.npmjs.org/ RUN_OUTPUT_MB=2048
 }
 run_worker demo "$SRC" "$OUT" 'printf "int main(){return 0;}" > /tmp/hello.cc; g++ /tmp/hello.cc -o /tmp/hello; /tmp/hello; mkdir dist; echo NEXT > dist/index.html' > "$SB/next.log" 2>&1
 [[ $(cat "$OUT/dist/index.html") == NEXT ]]
@@ -47,7 +47,7 @@ const held=[]; setInterval(()=>held.push(Buffer.alloc(16*1024*1024,1)),10);
 JS
 load_execution_policy() {
     RUN_PROFILE=worker RUN_IMAGE=$IMAGE RUN_TIMEOUT=20 RUN_MEMORY=128 RUN_PIDS=32 RUN_CPUS=1
-    RUN_FETCH_NETWORK=none RUN_NPM_REGISTRY=https://registry.npmjs.org/
+    RUN_FETCH_NETWORK=none RUN_NPM_REGISTRY=https://registry.npmjs.org/ RUN_OUTPUT_MB=2048
 }
 if run_worker demo "$SRC" "$OUT" 'node oom.js' > "$SB/oom.log" 2>&1; then exit 1; fi
 grep -q '(137)' "$SB/oom.log" || { cat "$SB/oom.log"; exit 1; }
@@ -101,13 +101,30 @@ cat > "$SRC/package.json" <<'JSON'
 JSON
 load_execution_policy() {
     RUN_PROFILE=worker RUN_IMAGE=$IMAGE RUN_TIMEOUT=60 RUN_MEMORY=256 RUN_PIDS=64 RUN_CPUS=1
-    RUN_FETCH_NETWORK=$NET RUN_NPM_REGISTRY=https://registry.npmjs.org/
+    RUN_FETCH_NETWORK=$NET RUN_NPM_REGISTRY=https://registry.npmjs.org/ RUN_OUTPUT_MB=2048
 }
 validate_fetch_network "$NET"
 run_worker demo "$SRC" "$OUT" 'test -f node_modules/sandbox-dep/package.json && mkdir dist && node -e "process.stdout.write(require(\"tiny-addon\").hi())" > dist/index.html' > "$SB/deps.log" 2>&1 || { cat "$SB/deps.log"; exit 1; }
 [[ $(cat "$OUT/dist/index.html") == NATIVE ]]
 [[ $(cat "$OUT/lifecycle.log") == lo ]] || { echo "lifecycle ran with network or twice:"; cat "$OUT/lifecycle.log"; exit 1; }
 [[ ! -e $OUT/.sandbox-npm-cache ]]
+safe_rm_rf "$SB/state/demo" "$OUT"
+# The output is a host bind mount: polling bounds its size and free space.
+printf '{"name":"security-fixture","version":"1.0.0"}\n' > "$SRC/package.json"
+rm -rf "$SRC/vendor"
+load_execution_policy() {
+    RUN_PROFILE=worker RUN_IMAGE=$IMAGE RUN_TIMEOUT=60 RUN_MEMORY=256 RUN_PIDS=32 RUN_CPUS=1
+    RUN_FETCH_NETWORK=none RUN_NPM_REGISTRY=https://registry.npmjs.org/ RUN_OUTPUT_MB=2
+}
+started=$SECONDS
+if SANDBOX_WATCH_INTERVAL=1 run_worker demo "$SRC" "$OUT" 'head -c 8000000 /dev/zero > big; sleep 50' > "$SB/big.log" 2>&1; then exit 1; fi
+grep -q 'stopped: output' "$SB/big.log" || { cat "$SB/big.log"; exit 1; }
+(( SECONDS - started < 30 )) || { echo "output limit did not stop the worker early"; exit 1; }
+[[ -z $(docker ps -aq --filter "ancestor=$IMAGE") ]]
+safe_rm_rf "$SB/state/demo" "$OUT"
+if SANDBOX_WATCH_INTERVAL=1 SANDBOX_MIN_FREE_MB=999999999 run_worker demo "$SRC" "$OUT" 'sleep 50' > "$SB/free.log" 2>&1; then exit 1; fi
+grep -q 'stopped: output' "$SB/free.log" || { cat "$SB/free.log"; exit 1; }
+[[ -z $(docker ps -aq --filter "ancestor=$IMAGE") ]]
 safe_rm_rf "$SB/state/demo" "$OUT"
 # Real policy loader: root-owned parents accepted; writable policy and symlink rejected.
 docker run --rm -i -v "$ROOT:/repo:ro" --entrypoint /bin/bash "$IMAGE" -s <<'SCRIPT'
@@ -123,4 +140,4 @@ chmod 644 /etc/sandbox/projects/demo.conf
 ln -s demo.conf /etc/sandbox/projects/link.conf
 if load_execution_policy link; then exit 1; fi
 SCRIPT
-printf 'PASS worker: two phases (dependency scripts and node-gyp only offline), no source in build, no host paths/socket, timeout/OOM/PID failures remove container, native build and next attempt succeed; root-owned policy guards\n'
+printf 'PASS worker: two phases (dependency scripts and node-gyp only offline), no source in build, no host paths/socket, timeout/OOM/PID/output-size/free-space failures remove container, native build and next attempt succeed; root-owned policy guards\n'
