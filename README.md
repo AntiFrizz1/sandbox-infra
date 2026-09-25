@@ -20,26 +20,40 @@ post-receive хук и Caddy с автоматическим TLS (DNS-01, Timewe
 ```
 bootstrap.sh          — разовая установка на чистый VPS
 update-infra.sh       — обновление уже установленной инфраструктуры
-examples/             — примеры .sandbox.conf для статики, Vite и Docker
-tests/                — тесты shell-скриптов (bash tests/run.sh)
-docs/MIGRATION.md     — перевод уже развёрнутого VPS на новую раскладку
+examples/             — .sandbox.conf для статики, Vite и Docker; root-политики
+                        worker-policy.conf и compose-policy.conf
+tests/                — тесты (bash tests/run.sh) и обязательные integration-скрипты
+scripts/check-release.py — release gate по манифесту образов и сканам
+docs/
+  MIGRATION.md           — перевод уже развёрнутого VPS на новую раскладку
+  MIGRATION-LEGACY.md    — подробный пофазный план со старой раскладки
+  SECURITY-*.md          — аудит, план, статус и runbook применения
 caddy/
-  Dockerfile           — сборка Caddy через xcaddy (docker-proxy + timeweb)
-  docker-compose.yml   — запуск Caddy
+  Dockerfile           — сборка Caddy через xcaddy (docker-proxy + timeweb), по digest
+  docker-compose.yml   — публичный server и controller с Docker socket
   Caddyfile             — конфиг Caddy (домен и email — placeholder'ы)
   .env.example          — шаблон для TIMEWEB_API_TOKEN
+worker/
+  Dockerfile, run.sh     — одноразовый контейнер сборки Node (fetch / build)
 deploy/
-  lib/common.sh          — валидация имён, защита путей, чтение конфига
-  lib/project.sh         — тип проекта, .sandbox.conf, каталог публикации
   hook.sh                — общий post-receive хук, определяет тип проекта и деплоит
+  lib/common.sh          — валидация имён, защита путей, закрытые файлы, блокировки
+  lib/project.sh         — тип проекта, .sandbox.conf, каталог публикации
   lib/release.sh         — атомарная публикация релизов и откат
   lib/caddy.sh           — пер-проектные SPA-правила и перезагрузка Caddy
+  lib/runner.sh          — root-политики и двухфазный worker
+  lib/compose.sh         — запуск Docker-проектов по политике profile=compose
+  lib/migration.sh       — безопасная миграция раздачи с бэкапом и карантином
+  lint-compose.py        — проверка compose-модели по белому списку
+  bounded-log.py         — лог деплоя с ограничением размера
   new-app.sh             — создание нового bare-репозитория на VPS
   stop-app.sh            — временная остановка проекта
   rollback-app.sh        — откат на предыдущий релиз без пересборки
   status-app.sh          — состояние проекта, проверка исхода деплоя
   list-apps.sh           — список всех проектов с их состоянием
   logs-app.sh            — логи деплоев
+  cleanup-app.sh         — очистка завершённых логов проекта
+  repair-permissions.sh  — исправление прав закрытого состояния
   remove-app.sh          — полное удаление проекта
   migrate.sh             — перевод старой раскладки на новую
 client/

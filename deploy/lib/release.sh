@@ -18,6 +18,8 @@ SANDBOX_PUBLISH_EXCLUDES=(
     '.env' '.env.*' '*.env'
     '.sandbox.conf'
     '*.pem' '*.key' 'id_rsa*' 'id_ed25519*'
+    # The worker leaves dependencies next to the build; publish_dir=. must not ship them.
+    '/node_modules'
 )
 
 release_root()    { printf '%s/releases\n' "$(app_site_dir "$1")"; }

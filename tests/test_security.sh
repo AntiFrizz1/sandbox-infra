@@ -101,4 +101,22 @@ echo PUBLIC > "$SB/pub-src/index.html"
 ( umask 077; publish_release fresh 0123abc "$SB/pub-src" ) >/dev/null
 assert_eq 'new site dir traversable' 755 "$(stat -c %a "$SB/sites/fresh")"
 assert_eq 'new releases dir traversable' 755 "$(stat -c %a "$SB/sites/fresh/releases")"
+
+# Worker output next to a publish_dir=. build: dependencies are not published.
+mkdir -p "$SB/pub-dot/node_modules/dep" "$SB/pub-dot/assets/node_modules"
+echo PUBLIC > "$SB/pub-dot/index.html"
+echo DEP > "$SB/pub-dot/node_modules/dep/index.js"
+echo VENDORED > "$SB/pub-dot/assets/node_modules/lib.js"
+publish_release fresh 0456def "$SB/pub-dot" >/dev/null
+assert_missing 'top-level node_modules not published' "$SB/sites/fresh/current/node_modules"
+assert_exists 'nested node_modules kept (it is site content)' "$SB/sites/fresh/current/assets/node_modules/lib.js"
+
+# Re-running bootstrap replaces the image line instead of appending another.
+printf 'TIMEWEB_API_TOKEN=x\nSANDBOX_CADDY_IMAGE=old@sha256:1\n' > "$SB/image.env"
+chmod 640 "$SB/image.env"
+assert_ok 'set env value' set_env_value "$SB/image.env" SANDBOX_CADDY_IMAGE 'new@sha256:2'
+assert_ok 'set env value again' set_env_value "$SB/image.env" SANDBOX_CADDY_IMAGE 'new@sha256:2'
+assert_eq 'single image line, other keys kept' $'TIMEWEB_API_TOKEN=x\nSANDBOX_CADDY_IMAGE=new@sha256:2' "$(cat "$SB/image.env")"
+assert_eq 'env mode kept' 640 "$(stat -c %a "$SB/image.env")"
+assert_fail 'newline in value refused' set_env_value "$SB/image.env" SANDBOX_CADDY_IMAGE $'a\nEVIL=1'
 finish

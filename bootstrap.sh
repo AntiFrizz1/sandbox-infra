@@ -4,6 +4,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=deploy/lib/common.sh
+source "$SCRIPT_DIR/deploy/lib/common.sh"
 
 # A release is built/scanned once elsewhere; never rebuilt on the VPS.
 [[ ${SANDBOX_CADDY_IMAGE:-} =~ ^[^[:space:]]+@sha256:[a-f0-9]{64}$ ]] || {
@@ -118,7 +120,8 @@ chmod 640 /srv/caddy/.env
 
 echo "==> Получаю утверждённый образ Caddy"
 docker pull "$SANDBOX_CADDY_IMAGE"
-printf 'SANDBOX_CADDY_IMAGE=%s\n' "$SANDBOX_CADDY_IMAGE" >> /srv/caddy/.env
+set_env_value /srv/caddy/.env SANDBOX_CADDY_IMAGE "$SANDBOX_CADDY_IMAGE" \
+    || { echo "не удалось записать SANDBOX_CADDY_IMAGE в /srv/caddy/.env" >&2; exit 1; }
 
 echo "==> Запускаю Caddy"
 cd /srv/caddy

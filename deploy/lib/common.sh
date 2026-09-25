@@ -206,3 +206,21 @@ append_private_line() {
     rm -f "$tmp"
     return 1
 }
+
+# set_env_value <file> <key> <value>
+# Replaces or appends KEY=value atomically; other lines, mode and owner stay.
+# Re-running bootstrap must not pile up duplicate keys in the Caddy .env.
+set_env_value() {
+    local file=$1 key=$2 value=$3 tmp
+    assert_plain_path "$file" && [[ -f $file ]] || return 1
+    [[ $key =~ ^[A-Za-z_][A-Za-z0-9_]*$ && $value != *$'\n'* ]] || return 1
+    tmp=$(mktemp "$file.XXXXXX") || return 1
+    if { grep -v "^$key=" "$file" || true; printf '%s=%s\n' "$key" "$value"; } > "$tmp" \
+        && chmod --reference="$file" "$tmp" \
+        && { (( EUID != 0 )) || chown --reference="$file" "$tmp"; } \
+        && mv -T "$tmp" "$file"; then
+        return 0
+    fi
+    rm -f "$tmp"
+    return 1
+}
