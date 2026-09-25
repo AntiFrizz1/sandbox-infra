@@ -280,12 +280,21 @@ Caddyfile использовать нельзя: в нём нет сгенери
 
 Сначала администратор устанавливает `examples/worker-policy.conf` в
 `/etc/sandbox/projects/<name>.conf` от root и указывает проверенный worker
-image digest. Образ загружается заранее. Worker имеет network none и npm
-`--offline`: зависимости должны быть доступны офлайн. Настройки сети из
+image digest. Образ загружается заранее. Сборка идёт в два контейнера:
+
+1. **fetch** — сеть `fetch_network` из политики (обычно `sandbox_build`),
+   `npm ci --ignore-scripts`: npm только скачивает и распаковывает пакеты,
+   ни код репозитория, ни lifecycle-скрипты зависимостей не выполняются.
+   Registry задаёт политика, а не `.npmrc` проекта.
+2. **build** — без сети и без исходников: `npm rebuild` (postinstall,
+   node-gyp с заголовками из образа), lifecycle-скрипты проекта, затем
+   `build_cmd`.
+
+Git-зависимости не поддерживаются: в образе нет git. Настройки из
 репозитория не расширяют полномочия. Ошибка не запускает сборку на хосте.
 Runtime env не выдаётся; отдельно подготовленный `state/<name>/build-env`
-доступен коду сборки. Root filesystem read-only; source read-only; writable
-output и tmp отделены от state, hook, SSH и Docker API.
+доступен только фазе build. Root filesystem read-only; writable output и tmp
+отделены от state, hook, SSH и Docker API.
 
 - Если это чистый фронт без своего сервера — `package.json` со скриптом
   `build`. Хук соберёт (`npm run build`) и опубликует `dist/`. Для

@@ -115,10 +115,14 @@ image digest. Остановить новые deploy через SSH/post-receive
    проверки аккаунта/зоны. DNS smoke проводить на ACME staging/test domain.
 4. Worker policy: `/etc/sandbox/projects/<name>.conf`, root:root 0644; все
    родительские каталоги root-owned и без group/world-write. Образ заранее
-   загрузить по утверждённому digest. Кандидат worker использует `network none`
-   и `npm --offline`: пакеты должны быть доступны офлайн. Универсального
-   сетевого профиля/registry-egress firewall в этом выпуске нет. Проекты,
-   которым нужен registry, не переводить до проверки отдельного egress-контура.
+   загрузить по утверждённому digest. Зависимости скачивает отдельный
+   контейнер fetch в сети `fetch_network` (bootstrap создаёт `sandbox_build`
+   с меткой `sandbox.role=build`; сеть без метки отвергается) командой
+   `npm ci --ignore-scripts` — код проекта и зависимостей там не выполняется.
+   Контейнер build всегда без сети. Остаточный риск fetch: npm по lockfile
+   делает GET на произвольные URL (в том числе внутренние адреса VPS);
+   ответ проверяется integrity и в раздачу не попадает. Если это неприемлемо,
+   `fetch_network=none` и заранее подготовленные зависимости.
    Профиль из репозитория не даёт права изменить execution policy.
 5. Runtime env не передаётся Node. Только явно подготовленный `state/<name>/build-env`
    доступен worker; это отдельный набор разрешённых build secrets. Весь этот

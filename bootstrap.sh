@@ -53,6 +53,9 @@ install -d -m 755 -o root -g root /etc/sandbox /etc/sandbox/projects
 
 # --- 3. Общая docker-сеть ---
 docker network inspect sandbox_net &>/dev/null || docker network create sandbox_net
+# Only the worker's fetch phase joins this network; no project code runs there.
+docker network inspect sandbox_build &>/dev/null \
+    || docker network create --label sandbox.role=build sandbox_build
 
 # --- 4. Deploy-хук и хелперы ---
 # Копируется весь каталог deploy/, включая lib/ — скрипты подключают
