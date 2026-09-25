@@ -3,8 +3,8 @@
   "Trivy": {
     "Version": "0.74.0"
   },
-  "ReportID": "01a0c0a0-3898-7b41-9c59-71b5541d446d",
-  "CreatedAt": "2026-09-21T00:02:00.856738916+03:00",
+  "ReportID": "01a0da1c-348e-7048-82da-74f7c4ec55b1",
+  "CreatedAt": "2026-09-25T19:47:56.686019991Z",
   "ArtifactID": "sha256:d0c5974b9e60059b6782130cccbc713e1bb7fe316e06de4eb8d2337e020b7715",
   "ArtifactName": "sandbox-security-caddy:candidate",
   "ArtifactType": "container_image",

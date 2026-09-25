@@ -83,6 +83,74 @@
 
   итого: 61 проверок, 0 провалов
 
+=== test_compose_policy.sh ===
+== обычный проект ==
+  ok   ordinary project admitted
+== привилегии и пространства имён хоста ==
+  ok   privileged
+  ok   cap_add
+  ok   devices
+  ok   host network
+  ok   host pid
+  ok   host ipc
+  ok   userns host
+  ok   seccomp off
+  ok   sysctls
+  ok   published port
+  ok   own resource limits
+  ok   deploy limits
+  ok   logging driver
+  ok   container_name
+  ok   volumes_from another container
+  ok   lifecycle hook
+== файлы и данные хоста ==
+  ok   absolute bind
+  ok   parent bind
+  ok   bind through symlink
+  ok   docker socket
+  ok   env_file outside
+  ok   build outside
+  ok   build ssh
+  ok   build extra context
+  ok   build host network
+  ok   built image hijacks a shared tag
+  ok   external volume
+  ok   volume named after another project
+  ok   local driver bind to host path
+  ok   top-level secrets from host file
+== сети и Caddy ==
+  ok   Caddy control network
+  ok   network renamed onto another
+  ok   foreign hostname
+  ok   apex hostname
+  ok   lookalike hostname
+  ok   proxy to Caddy admin
+  ok   raw Caddy directive
+  ok   pretend to be the Caddy server
+  ok   spoof compose metadata
+== другие файлы и интерполяция ==
+  ok   include
+  ok   extends from another file
+  ok   privilege via interpolation
+  ok   bind via interpolation
+  ok   repository .env is not used for interpolation
+== override с ограничениями ==
+  ok   override written
+  ok   override covers every service
+  ok   memory limit enforced
+  ok   no-new-privileges enforced
+== реальный запуск ==
+  ok   lint passes
+  ok   up with enforced override
+  ok   runtime memory limit
+  ok   runtime pids limit
+  ok   runtime no-new-privileges
+  ok   runtime log driver
+  ok   down by project name only
+  ok   no containers left
+
+  итого: 57 проверок, 0 провалов
+
 === test_deploy.sh ===
 == первый деплой ==
   ok   сайт отдаёт версию 1
@@ -170,7 +238,41 @@
   ok   current не изменился
   ok   сайт на месте
 
-  итого: 54 проверок, 0 провалов
+== мало места — деплой откладывается ==
+  ok   хук сообщает о нехватке места
+  ok   сайт остался на прежней версии
+
+== docker-проект без root-политики не запускается ==
+  ok   хук сообщает об отказе политики
+  ok   рабочий каталог compose не создан
+  ok   статика не тронута
+
+  итого: 59 проверок, 0 провалов
+
+=== test_maintenance.sh ===
+== dry-run ничего не меняет ==
+  ok   dry run leaves the tree unchanged
+  ok   dry run reports the orphan staging
+== занятый проект пропускается ==
+  ok   staging kept while a deploy runs
+  ok   build tree kept while a deploy runs
+  ok   busy project reported
+== очистка ==
+  ok   maintenance succeeds
+  ok   orphan staging removed
+  ok   temporary current link removed
+  ok   abandoned build tree removed
+  ok   abandoned worker output removed
+  ok   temporary journal removed
+  ok   published release untouched
+  ok   deploy logs trimmed to twenty
+  ok   bare repository still valid
+  ok   three newest and recent backups kept
+  ok   repeat run is a no-op
+== мало места ==
+  ok   low disk space exits with status 2
+
+  итого: 17 проверок, 0 провалов
 
 === test_migrate.sh ===
 == audit ничего не меняет ==
@@ -326,11 +428,24 @@
   итого: 19 проверок, 0 провалов
 
 === test_release_gate.sh ===
+== целостность и одобрение ==
   ok   synthetic consistent approved evidence accepted
   ok   evidence tampering rejected
   ok   unapproved working tree rejected
+== исключения ==
+  ok   unexcepted HIGH blocks
+  ok   documented, current exception accepted
+  ok   expired exception blocks with a reason
+  ok   exception longer than 90 days refused
+  ok   exception without a reason refused
+  ok   exception without an owner refused
+  ok   exception for another package does not apply
+  ok   fixable finding cannot be excepted
+  ok   exceptions file changed after approval
+  ok   unused exception only warns
+  ok   unused exception is reported
 
-  итого: 3 проверок, 0 провалов
+  итого: 14 проверок, 0 провалов
 
 === test_remove_stop.sh ===
 == remove-app.sh: обход каталога ==
@@ -480,8 +595,15 @@
   ok   dry run keeps public/backup trees
   ok   new site dir traversable
   ok   new releases dir traversable
+  ok   top-level node_modules not published
+  ok   nested node_modules kept (it is site content)
+  ok   set env value
+  ok   set env value again
+  ok   single image line, other keys kept
+  ok   env mode kept
+  ok   newline in value refused
 
-  итого: 39 проверок, 0 провалов
+  итого: 46 проверок, 0 провалов
 
 === test_spa.sh ===
 == генерация правил ==
@@ -690,9 +812,41 @@
 
   итого: 52 проверок, 0 провалов
 
+=== test_worker_dispatch.sh ===
+== две фазы ==
+  ok   worker completes
+  ok   exactly two containers
+  ok   fetch joins the build network
+  ok   fetch runs the fetch mode
+  ok   registry comes from policy
+  ok   fetch sees the source
+  ok   fetch never sees build secrets
+  ok   fetch never receives the build command
+  ok   build has no network
+  ok   build runs the build mode
+  ok   build receives the command
+  ok   build gets build secrets
+  ok   build does not see the source
+  ok   both phases drop capabilities
+  ok   both containers removed
+== непустой output отвергается ==
+  ok   leftover output refused
+  ok   no container for leftover output
+== провал fetch останавливает сборку ==
+  ok   no build container after failed fetch
+  ok   failed container removed
+== сеть для fetch ==
+  ok   none is always allowed
+  ok   labelled build network allowed
+  ok   unlabelled network refused
+  ok   host network refused even if labelled
+  ok   malformed network name refused
+
+  итого: 24 проверок, 0 провалов
+
 === shellcheck ===
   (локального shellcheck нет, использую koalaman/shellcheck в docker)
   ok   shellcheck чист
 
 ===============================
-ВСЕ ТЕСТЫ ПРОЙДЕНЫ (15 файлов)
+ВСЕ ТЕСТЫ ПРОЙДЕНЫ (18 файлов)
