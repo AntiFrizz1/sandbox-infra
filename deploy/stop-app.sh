@@ -36,10 +36,9 @@ load_project_config "$NAME" "$WORKDIR" || die "[$NAME] конфиг проект
 case "$PROJECT_TYPE" in
     docker)
         log "[$NAME] Останавливаю Docker-контейнеры ($PROJECT_COMPOSE_FILE)"
-        # Имя compose-проекта фиксируется явно: по умолчанию оно выводится
-        # из basename каталога, и любой переезд каталога осиротил бы
-        # существующие контейнеры и volumes.
-        (cd "$WORKDIR" && COMPOSE_PROJECT_NAME="$NAME" docker compose down)
+        # Только по имени проекта, из каталога без compose-файла: файл из
+        # репозитория здесь не читается и не интерполируется.
+        (cd / && env -i PATH="$PATH" HOME="$HOME" docker compose -p "$NAME" down)
         rm -f "$(app_state_dir "$NAME")/docker-active-sha"
         ;;
     dockerfile-only)

@@ -23,6 +23,8 @@ source "$SCRIPT_DIR/lib/release.sh"
 source "$SCRIPT_DIR/lib/caddy.sh"
 # shellcheck source=deploy/lib/runner.sh
 source "$SCRIPT_DIR/lib/runner.sh"
+# shellcheck source=deploy/lib/compose.sh
+source "$SCRIPT_DIR/lib/compose.sh"
 
 DEPLOY_BRANCH="${SANDBOX_DEPLOY_BRANCH:-main}"
 TARGET_REF="refs/heads/$DEPLOY_BRANCH"
@@ -131,7 +133,60 @@ case "$PROJECT_TYPE" in
         ;;
 
     docker)
-        die "[$APP_NAME] host Compose execution disabled. Migrate this project to a dedicated rootless daemon/VM before enabling deployment."
+        # Compose из коммита исполняется host daemon'ом, поэтому допускается
+        # только по root-политике profile=compose и после проверки модели.
+        load_compose_policy "$APP_NAME" || die "[$APP_NAME] Docker-проект не допущен политикой"
+        echo "   compose-файл: $PROJECT_COMPOSE_FILE"
+        WORKDIR="$(app_work_dir "$APP_NAME")"
+        require_plain_under "$SANDBOX_APPS_ROOT" "$WORKDIR" || die "[$APP_NAME] небезопасный рабочий каталог"
+        mkdir -p "$WORKDIR"
+        # Docker-проект живёт в постоянном каталоге: там bind-mount данные.
+        # Синхронизация без --delete — потерять данные приложения хуже,
+        # чем оставить файл от прошлой версии.
+        rsync -a "$BUILDDIR/" "$WORKDIR/"
+        if [[ -f "$STATEDIR/env" ]]; then
+            echo "   подкладываю серверный .env из $STATEDIR/env"
+            install_private "$STATEDIR/env" "$WORKDIR/.env" || die "[$APP_NAME] небезопасный путь .env"
+        fi
+
+        # До этой точки работающий стек не тронут: отказ проверки оставляет
+        # прежние контейнеры как есть.
+        compose_lint "$APP_NAME" "$WORKDIR" "$PROJECT_COMPOSE_FILE" "$SANDBOX_DOMAIN" \
+            || die "[$APP_NAME] compose-файл нарушает политику — стек не обновлён"
+        OVERRIDE="$STATEDIR/compose.override.json"
+        compose_write_override "$APP_NAME" "$WORKDIR" "$PROJECT_COMPOSE_FILE" "$OVERRIDE" \
+            || die "[$APP_NAME] не удалось подготовить ограничения compose"
+
+        rm -f "$STATEDIR/docker-active-sha"
+        # Таймаут останавливает CLI; сборку, уже переданную daemon'у, он не прерывает.
+        COMPOSE_WRAP=(timeout --signal=TERM --kill-after=10 "$COMPOSE_TIMEOUT")
+        compose_run "$APP_NAME" "$WORKDIR" "$PROJECT_COMPOSE_FILE" -f "$OVERRIDE" -- \
+            up -d --build --remove-orphans \
+            || die "[$APP_NAME] docker compose up не удался"
+        COMPOSE_WRAP=()
+
+        if [[ -n "$PROJECT_HEALTH_URL" ]]; then
+            # Порты наружу не публикуются, поэтому проверка идёт через Caddy
+            # и только по адресу самого проекта.
+            health_re="^https?://([a-z0-9-]+\.)*${APP_NAME}\.${SANDBOX_DOMAIN//./\\.}(/|\$)"
+            [[ $PROJECT_HEALTH_URL =~ $health_re ]] \
+                || die "[$APP_NAME] health_url должен вести на $APP_NAME.$SANDBOX_DOMAIN"
+            # `up -d` возвращается, когда контейнеры созданы, а не когда
+            # приложение готово отвечать.
+            echo "   жду готовности: $PROJECT_HEALTH_URL"
+            deadline=$(( $(date +%s) + ${SANDBOX_HEALTH_TIMEOUT:-60} ))
+            until curl -fsS -o /dev/null --max-time 5 "$PROJECT_HEALTH_URL"; do
+                if (( $(date +%s) >= deadline )); then
+                    die "[$APP_NAME] приложение не ответило на $PROJECT_HEALTH_URL за отведённое время"
+                fi
+                sleep 2
+            done
+            echo "   приложение отвечает"
+        fi
+        # Атомарная подмена, а не запись поверх: status читает этот файл
+        # без замка и не должен застать его пустым между truncate и write.
+        printf '%s\n' "$NEWREV" > "$STATEDIR/.docker-active-sha.$$"
+        mv -T "$STATEDIR/.docker-active-sha.$$" "$STATEDIR/docker-active-sha"
         ;;
 
     static|node)

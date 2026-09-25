@@ -305,17 +305,43 @@ Runtime env не выдаётся; отдельно подготовленный
 
 ### 3. Docker, API и боты
 
-Новый hook распознаёт `type=docker`, но отклоняет исполнение Compose на
-host daemon, включая смену типа в коммите. Для таких проектов требуется
-отдельный rootless daemon под отдельным UID или VM и отдельная миграция
-данных/маршрутов. Автоматический dispatcher этих контуров пока не реализован.
-Работающие legacy-контейнеры этим изменением не остановлены, но новый hook
-не обновляет их. `examples/docker.sandbox.conf` описывает прежний профиль.
+Compose из коммита исполняется host daemon'ом, поэтому `type=docker`
+запускается только при root-политике `/etc/sandbox/projects/<name>.conf`
+с `profile=compose` (`examples/compose-policy.conf`). Смена типа в коммите
+без политики ничего не запускает.
 
-Caddy controller сохраняет поддержку labels существующих Docker-сервисов.
-Rootless-контейнеры не появляются автоматически в metadata host daemon:
-их ingress нужно спроектировать и проверить при миграции. Runtime secrets
-хранить вне Git/public output, с mode 0600; выдавать только нужному сервису.
+Перед `up` модель проверяет `deploy/lint-compose.py` по белому списку.
+Отвергаются: `privileged`, `cap_add`, `devices`, `network_mode`/`pid`/`ipc`/
+`userns_mode` хоста, `sysctls`, `ports`, `container_name`, `volumes_from`,
+`logging`, собственные лимиты ресурсов; bind-mount и `env_file` вне каталога
+проекта (в том числе через симлинк); чужие и внешние volumes, `driver_opts`;
+внешние сети, кроме `sandbox_net`; `include` и `extends` из других файлов;
+`secrets`/`configs`; build с `ssh`, `additional_contexts`, `network`, а также
+built-образ с чужим именем. Лейблы Caddy: только `caddy` с адресами внутри
+`<name>.<домен>` и `caddy.reverse_proxy: "{{upstreams [порт]}}"`.
+
+Лимиты памяти, CPU и PID, `no-new-privileges` и ротацию логов добавляет
+серверный override. Интерполяция видит только `/srv/state/<name>/env`, а не
+`.env` репозитория. Проект запускается как `-p <name>`; stop и remove
+работают по имени проекта, не читая compose-файл.
+
+Пример с лейблами:
+```yaml
+services:
+  app:
+    build: .
+    labels:
+      caddy: myapp.sandbox.example.com
+      caddy.reverse_proxy: "{{upstreams 8080}}"
+    networks: [sandbox_net]
+networks:
+  sandbox_net:
+    external: true
+```
+
+Код внутри контейнеров и `RUN` в Dockerfile этим не ограничиваются: сборка
+идёт на host daemon с сетью. Таймаут останавливает CLI, но не уже начатую
+сборку. Runtime secrets держать в `/srv/state/<name>/env` (0600).
 
 ## Изоляция сети между сервисами одного проекта
 

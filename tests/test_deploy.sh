@@ -269,4 +269,15 @@ out=$(git -C "$WORK" push -q prod --delete main 2>&1 || true)
 assert_eq "current не изменился" "$BEFORE" "$(current_sha)"
 assert_exists "сайт на месте" "$SITE/current/index.html"
 
+echo
+echo "== docker-проект без root-политики не запускается =="
+printf 'type=docker\n' > "$WORK/.sandbox.conf"
+printf 'services:\n  app:\n    image: busybox\n    privileged: true\n' > "$WORK/compose.yml"
+commit "DOCKER"
+out=$(SANDBOX_POLICY_ROOT="$SB/no-policy" git -C "$WORK" push prod main 2>&1 || true)
+assert_eq "хук сообщает об отказе политики" "да" \
+    "$(grep -q 'не допущен политикой' <<< "$out" && echo да || echo нет)"
+assert_missing "рабочий каталог compose не создан" "$SANDBOX_APPS_ROOT/$NAME/compose.yml"
+assert_eq "статика не тронута" "$BEFORE" "$(current_sha)"
+
 finish

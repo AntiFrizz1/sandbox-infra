@@ -59,7 +59,8 @@ fi
 # удалению, поэтому она только предупреждает.
 if load_project_config "$NAME" "$WORKDIR" 2>/dev/null && [[ "$PROJECT_TYPE" == docker ]]; then
     log "[$NAME] Удаляю Docker-контейнеры, volumes и локальные образы"
-    (cd "$WORKDIR" && COMPOSE_PROJECT_NAME="$NAME" docker compose down -v --rmi local)
+    # По имени проекта, без чтения compose-файла из репозитория.
+    (cd / && env -i PATH="$PATH" HOME="$HOME" docker compose -p "$NAME" down -v --rmi local)
 fi
 
 # Каждый путь проверяется относительно своего корня по отдельности:
