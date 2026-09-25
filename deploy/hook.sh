@@ -21,6 +21,8 @@ source "$SCRIPT_DIR/lib/project.sh"
 source "$SCRIPT_DIR/lib/release.sh"
 # shellcheck source=deploy/lib/caddy.sh
 source "$SCRIPT_DIR/lib/caddy.sh"
+# shellcheck source=deploy/lib/runner.sh
+source "$SCRIPT_DIR/lib/runner.sh"
 
 DEPLOY_BRANCH="${SANDBOX_DEPLOY_BRANCH:-main}"
 TARGET_REF="refs/heads/$DEPLOY_BRANCH"
@@ -30,7 +32,6 @@ REPO_DIR="$(pwd)"
 APP_NAME="$(basename "$REPO_DIR" .git)"
 require_valid_app_name "$APP_NAME"
 
-WORKDIR="$(app_work_dir   "$APP_NAME")"
 STATEDIR="$(app_state_dir "$APP_NAME")"
 BUILDDIR="$STATEDIR/build"
 
@@ -130,55 +131,17 @@ case "$PROJECT_TYPE" in
         ;;
 
     docker)
-        echo "   compose-файл: $PROJECT_COMPOSE_FILE"
-        mkdir -p "$WORKDIR"
-        # Docker-проект живёт в постоянном каталоге: там bind-mount данные
-        # и серверный .env. Синхронизация идёт без --delete — потерять
-        # данные приложения хуже, чем оставить файл от прошлой версии.
-        rsync -a "$BUILDDIR/" "$WORKDIR/"
-
-        if [[ -f "$STATEDIR/env" ]]; then
-            echo "   подкладываю серверный .env из $STATEDIR/env"
-            cp "$STATEDIR/env" "$WORKDIR/.env"
-        fi
-
-        # Имя compose-проекта фиксируется явно, чтобы контейнеры и volumes
-        # не зависели от basename каталога.
-        rm -f "$STATEDIR/docker-active-sha"
-        ( cd "$WORKDIR" && COMPOSE_PROJECT_NAME="$APP_NAME" docker compose up -d --build )
-
-        if [[ -n "$PROJECT_HEALTH_URL" ]]; then
-            # `docker compose up -d` возвращается, когда контейнеры созданы,
-            # а не когда приложение готово отвечать.
-            echo "   жду готовности: $PROJECT_HEALTH_URL"
-            deadline=$(( $(date +%s) + ${SANDBOX_HEALTH_TIMEOUT:-60} ))
-            until curl -fsS -o /dev/null --max-time 5 "$PROJECT_HEALTH_URL"; do
-                if (( $(date +%s) >= deadline )); then
-                    die "[$APP_NAME] приложение не ответило на $PROJECT_HEALTH_URL за отведённое время"
-                fi
-                sleep 2
-            done
-            echo "   приложение отвечает"
-        fi
-        # Атомарная подмена, а не запись поверх: status читает этот файл
-        # без замка и не должен застать его пустым между truncate и write.
-        printf '%s\n' "$NEWREV" > "$STATEDIR/.docker-active-sha.$$"
-        mv -T "$STATEDIR/.docker-active-sha.$$" "$STATEDIR/docker-active-sha"
+        die "[$APP_NAME] host Compose execution disabled. Migrate this project to a dedicated rootless daemon/VM before enabling deployment."
         ;;
 
     static|node)
         if [[ "$PROJECT_TYPE" == node ]]; then
-            [[ -f "$STATEDIR/env" ]] && cp "$STATEDIR/env" "$BUILDDIR/.env"
-            echo "   установка зависимостей"
-            if [[ -f "$BUILDDIR/package-lock.json" ]]; then
-                ( cd "$BUILDDIR" && npm ci )
-            else
-                ( cd "$BUILDDIR" && npm install )
-            fi
-            # build_cmd задаётся разработчиком в его же репозитории, где он
-            # и так управляет сборкой через package.json.
-            echo "   сборка: $PROJECT_BUILD_CMD"
-            ( cd "$BUILDDIR" && eval "$PROJECT_BUILD_CMD" )
+            OUTPUT="$STATEDIR/worker-output"
+            safe_rm_rf "$STATEDIR" "$OUTPUT" || die "unsafe worker output"
+            run_worker "$APP_NAME" "$BUILDDIR" "$OUTPUT" "$PROJECT_BUILD_CMD" \
+                || die "[$APP_NAME] isolated worker failed; no host fallback"
+            safe_rm_rf "$STATEDIR" "$BUILDDIR" || die "unsafe source"
+            mv "$OUTPUT" "$BUILDDIR"
         fi
 
         PUBLISH_SRC=$(validate_publish_dir "$BUILDDIR" "$PROJECT_PUBLISH_DIR") \

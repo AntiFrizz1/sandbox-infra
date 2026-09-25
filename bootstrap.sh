@@ -42,18 +42,14 @@ usermod -aG docker deploy
 apt-get update -y
 apt-get install -y rsync git
 
-if ! command -v node &>/dev/null; then
-    echo "==> Устанавливаю Node.js LTS"
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-    apt-get install -y nodejs
-fi
-
 # --- 2. Структура каталогов ---
 mkdir -p /srv/git /srv/apps /srv/sites /srv/state /srv/deploy /srv/caddy
 chown -R deploy:deploy /srv/git /srv/apps /srv/sites /srv/state
 
 # util-linux: нужен для flock, которым сериализуются операции над проектом
 apt-get install -y util-linux
+
+install -d -m 755 -o root -g root /etc/sandbox /etc/sandbox/projects
 
 # --- 3. Общая docker-сеть ---
 docker network inspect sandbox_net &>/dev/null || docker network create sandbox_net

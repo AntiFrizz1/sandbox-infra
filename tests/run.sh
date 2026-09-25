@@ -22,7 +22,7 @@ printf '\n=== shellcheck ===\n'
 # от текущего каталога, а в docker-варианте корень примонтирован в /mnt.
 mapfile -t scripts < <(
     cd "$ROOT" && {
-        find deploy tests -name '*.sh' -type f
+        find deploy tests worker -name '*.sh' -type f
         printf '%s\n' bootstrap.sh update-infra.sh client/sandbox-deploy
     }
 )
