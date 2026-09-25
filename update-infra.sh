@@ -24,7 +24,6 @@ source "$SRC_DIR/deploy/lib/common.sh"
 source "$SRC_DIR/deploy/lib/caddy.sh"
 
 SANDBOX_DEPLOY_DIR="${SANDBOX_DEPLOY_DIR:-/srv/deploy}"
-SANDBOX_CADDY_IMAGE="${SANDBOX_CADDY_IMAGE:-sandbox-caddy:latest}"
 BACKUP_DIR="${SANDBOX_BACKUP_DIR:-/root/sandbox-backups}"
 
 DO_SCRIPTS=true
@@ -182,6 +181,7 @@ if [[ "$DO_CADDY" == true ]]; then
         if [[ "$DRY_RUN" != true ]] && confirm "   Обновить docker-compose.yml?"; then
             run mkdir -p "$BACKUP_DIR"
             run cp -a "$COMPOSE_LIVE" "$BACKUP_DIR/docker-compose-$STAMP.yml"
+            [[ -f $SANDBOX_CADDY_DIR/config/Caddyfile ]] || die "split proxy requires config/Caddyfile; follow SECURITY-RUNBOOK.md"
             run cp "$COMPOSE_SRC" "$COMPOSE_LIVE"
             echo "   обновлён. Применить: cd $SANDBOX_CADDY_DIR && docker compose up -d"
         fi

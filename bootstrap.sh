@@ -5,6 +5,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# A release is built/scanned once elsewhere; never rebuilt on the VPS.
+[[ ${SANDBOX_CADDY_IMAGE:-} =~ ^[^[:space:]]+@sha256:[a-f0-9]{64}$ ]] || {
+    echo 'Set SANDBOX_CADDY_IMAGE to the approved release digest (see docs/SECURITY-RUNBOOK.md)' >&2
+    exit 1
+}
+export SANDBOX_CADDY_IMAGE
 echo "==> Sandbox infrastructure bootstrap"
 
 # --- 0. Deploy-пользователь ---
@@ -22,7 +28,8 @@ fi
 # --- 1. Docker ---
 if ! command -v docker &>/dev/null; then
     echo "==> Устанавливаю Docker"
-    curl -fsSL https://get.docker.com | sh
+    apt-get update
+    apt-get install -y docker.io docker-compose-v2
 fi
 
 if ! docker compose version &>/dev/null; then
@@ -75,11 +82,12 @@ fi
 # Существующая конфигурация не перезаписывается: в ней уже вписан домен.
 # Для обновления есть отдельный скрипт, который переносит домен и email
 # в новый шаблон и проверяет результат перед применением.
-if [[ -f /srv/caddy/Caddyfile ]]; then
+mkdir -p /srv/caddy/config
+if [[ -f /srv/caddy/config/Caddyfile ]]; then
     echo "!! /srv/caddy/Caddyfile уже существует — не трогаю его."
     echo "   Обновить конфигурацию: ./update-infra.sh --caddy-only"
 else
-    cp "$SCRIPT_DIR/caddy/Caddyfile" /srv/caddy/Caddyfile
+    cp "$SCRIPT_DIR/caddy/Caddyfile" /srv/caddy/config/Caddyfile
 fi
 
 if [[ -f /srv/caddy/docker-compose.yml ]]; then
@@ -107,8 +115,9 @@ fi
 chown root:deploy /srv/caddy/.env
 chmod 640 /srv/caddy/.env
 
-echo "==> Собираю кастомный образ Caddy (timeweb + docker-proxy)"
-docker build -t sandbox-caddy:latest "$SCRIPT_DIR/caddy"
+echo "==> Получаю утверждённый образ Caddy"
+docker pull "$SANDBOX_CADDY_IMAGE"
+printf 'SANDBOX_CADDY_IMAGE=%s\n' "$SANDBOX_CADDY_IMAGE" >> /srv/caddy/.env
 
 echo "==> Запускаю Caddy"
 cd /srv/caddy

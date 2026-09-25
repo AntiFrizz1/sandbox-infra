@@ -1,26 +1,66 @@
+# Set SANDBOX_CADDY_IMAGE to an approved registry digest in the private .env.
+# Migration from the old layout requires config/Caddyfile (see security runbook).
+x-common: &common
+  image: ${SANDBOX_CADDY_IMAGE:?approved digest required}
+  restart: unless-stopped
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging:
+    driver: local
+    options:
+      max-size: "10m"
+      max-file: "3"
+  tmpfs:
+    - /tmp:size=32m
 services:
   caddy:
-    image: sandbox-caddy:latest
-    command: caddy docker-proxy --caddyfile-path /etc/caddy/Caddyfile
-    restart: unless-stopped
-    env_file: .env
+    <<: *common
+    command: caddy docker-proxy
+    environment:
+      CADDY_DOCKER_MODE: server
+      CADDY_CONTROLLER_NETWORK: ${SANDBOX_CONTROL_SUBNET:-172.31.254.0/28}
+      TIMEWEB_API_TOKEN: ${TIMEWEB_API_TOKEN:?DNS credential required}
+    labels:
+      caddy_controlled_server: ""
     ports:
       - "80:80"
       - "443:443"
+      - "443:443/udp"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./config:/etc/caddy:ro
       - ./spa.d:/srv/caddy/spa.d:ro
       - /srv/sites:/srv/sites:ro
       - caddy_data:/data
       - caddy_config:/config
     networks:
       - sandbox_net
-
+      - control
+  controller:
+    <<: *common
+    command: caddy docker-proxy --caddyfile-path /etc/caddy/Caddyfile
+    environment:
+      CADDY_DOCKER_MODE: controller
+      CADDY_CONTROLLER_NETWORK: ${SANDBOX_CONTROL_SUBNET:-172.31.254.0/28}
+      CADDY_INGRESS_NETWORKS: sandbox_net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config:/etc/caddy:ro
+      - ./spa.d:/srv/caddy/spa.d:ro
+      - controller_config:/config
+    networks:
+      - control
 networks:
   sandbox_net:
     external: true
-
+  control:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${SANDBOX_CONTROL_SUBNET:-172.31.254.0/28}
 volumes:
   caddy_data:
   caddy_config:
+  controller_config:
