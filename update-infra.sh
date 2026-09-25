@@ -79,6 +79,7 @@ if [[ "$DO_SCRIPTS" == true ]]; then
     else
         install -m 755 "$SRC_DIR"/deploy/*.sh "$SANDBOX_DEPLOY_DIR/"
         install -m 644 "$SRC_DIR"/deploy/lib/*.sh "$SANDBOX_DEPLOY_DIR/lib/"
+        install -m 644 "$SRC_DIR/deploy/bounded-log.py" "$SANDBOX_DEPLOY_DIR/"
         # Симлинки post-receive в bare-репозиториях указывают сюда же,
         # поэтому отдельно их обновлять не нужно.
         if id deploy &>/dev/null; then

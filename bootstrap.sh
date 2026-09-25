@@ -40,7 +40,7 @@ fi
 usermod -aG docker deploy
 
 apt-get update -y
-apt-get install -y rsync git
+apt-get install -y rsync git python3
 
 # --- 2. Структура каталогов ---
 mkdir -p /srv/git /srv/apps /srv/sites /srv/state /srv/deploy /srv/caddy
@@ -60,6 +60,8 @@ docker network inspect sandbox_net &>/dev/null || docker network create sandbox_
 mkdir -p /srv/deploy/lib
 install -m 755 -o root -g root "$SCRIPT_DIR"/deploy/*.sh /srv/deploy/
 install -m 644 -o root -g root "$SCRIPT_DIR"/deploy/lib/*.sh /srv/deploy/lib/
+
+install -m 644 -o root -g root "$SCRIPT_DIR/deploy/bounded-log.py" /srv/deploy/
 
 # --- 4a. Общий конфиг: домен и SSH-хост ---
 # Пишется один раз, чтобы new-app.sh печатал реальный домен, а не плейсхолдер.

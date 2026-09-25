@@ -106,7 +106,7 @@ on_exit() {
 trap on_exit EXIT
 
 # Вывод идёт и разработчику в терминал, и в файл лога.
-exec > >(tee -a "$LOG_FILE") 2>&1
+exec > >(python3 "$SCRIPT_DIR/bounded-log.py" "$LOG_FILE" 1048576) 2>&1
 
 echo "→ [$APP_NAME] деплой $DEPLOY_BRANCH @ $SHORT_SHA"
 
