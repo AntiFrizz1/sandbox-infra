@@ -1,0 +1,19 @@
+ Container sandbox-security-mqynodmq-controller-1 Creating 
+ Container sandbox-security-mqynodmq-caddy-1 Creating 
+ Container sandbox-security-mqynodmq-app-1 Creating 
+ Container sandbox-security-mqynodmq-app-1 Created 
+ Container sandbox-security-mqynodmq-caddy-1 Created 
+ Container sandbox-security-mqynodmq-controller-1 Created 
+ Container sandbox-security-mqynodmq-caddy-1 Starting 
+ Container sandbox-security-mqynodmq-controller-1 Starting 
+ Container sandbox-security-mqynodmq-app-1 Starting 
+ Container sandbox-security-mqynodmq-caddy-1 Started 
+ Container sandbox-security-mqynodmq-controller-1 Started 
+ Container sandbox-security-mqynodmq-app-1 Started 
+wget: can't connect to remote host (172.21.0.2): Connection refused
+wget: can't connect to remote host (172.21.0.2): Connection refused
+wget: download timed out
+wget: download timed out
+ Container sandbox-security-mqynodmq-controller-1 Restarting 
+ Container sandbox-security-mqynodmq-controller-1 Started 
+PASS split proxy: static, reverse proxy labels, restart, atomic config; no server socket; ingress control/admin rejected

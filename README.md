@@ -3,32 +3,17 @@
 Git-push деплой для статики, SPA и Docker-приложений через один общий
 post-receive хук и Caddy с автоматическим TLS (DNS-01, Timeweb).
 
-## Проверено в бою
+## Security remediation
 
-Инфраструктура протестирована end-to-end на реальном VPS (Timeweb) для
-статики, React/Vite-сборки и Docker-контейнера с лейблами. Оговорка:
-у SPA-сборок работал только корень сайта — прямой заход на вложенный
-маршрут возвращал 404, потому что в Caddyfile не было fallback на
-`index.html`. Чинится настройкой `spa=true` (см. ниже).
+Текущая ветка меняет совместимость: host Compose отключён, Node запускается
+только в worker по root-owned политике. Public Caddy разделён с controller;
+при обновлении требуется миграция конфигурации и сохранение certificate volumes.
+Это локально проверенный кандидат, на действующий VPS он ещё не применён.
 
-По пути исправлены нюансы, которые стоит знать:
-
-- Флаг `caddy docker-proxy` нужен именно с двойным дефисом
-  (`--caddyfile-path`), одиночный дефис парсер трактует как склейку
-  однобуквенных флагов.
-- DNS-01 challenge (`dns timeweb ...`) должен быть указан **только** внутри
-  wildcard-блока, не глобально — иначе apex-домен и wildcard одновременно
-  просят DNS-01 по одному и тому же имени `_acme-challenge`, и возникает
-  гонка TXT-записей. Apex-домен и так проходит через обычный HTTP-01.
-- Плейсхолдер `{labels.N}` в Caddy считает части домена **с конца**, а не
-  с начала (`{labels.0}` для `test.sandbox.example.com` — это `com`, а не
-  `test`). Вместо этого используется `header_regexp` с явным regex-захватом
-  поддомена, и матчер обязательно навешивается на директиву (`root @app ...`),
-  иначе он объявлен, но не выполняется, и плейсхолдер остаётся пустым.
-- `npm ci` требует существующий `package-lock.json` — хук проверяет его
-  наличие и падает обратно на `npm install`, если лок-файла нет.
-- Node.js на VPS по умолчанию не установлен — `bootstrap.sh` теперь ставит
-  Node LTS через NodeSource.
+Статус замечаний и результаты — [SECURITY-REMEDIATION-STATUS.md](docs/SECURITY-REMEDIATION-STATUS.md).
+Обязательная инструкция применения и отката — [SECURITY-RUNBOOK.md](docs/SECURITY-RUNBOOK.md).
+Исходный [аудит](docs/SECURITY-AUDIT-2026-09-20.md) и PoC сохранены без изменения.
+Не использовать прежнюю процедуру массового обновления без этого runbook.
 
 ## Структура репозитория
 
@@ -69,12 +54,12 @@ scp -r sandbox-infra root@<VPS-IP>:/root/
 ssh root@<VPS-IP>
 cd /root/sandbox-infra
 chmod +x bootstrap.sh
-./bootstrap.sh
+SANDBOX_CADDY_IMAGE='<approved-registry-image>@sha256:<approved-digest>' ./bootstrap.sh
 ```
 
 После этого вручную:
 
-1. В `/srv/caddy/Caddyfile` замени `sandbox.example.com` на свой домен.
+1. В `/srv/caddy/config/Caddyfile` замени `sandbox.example.com` на свой домен.
 2. В `/srv/caddy/.env` впиши `TIMEWEB_API_TOKEN` (Timeweb Cloud → API-ключи).
 3. Перезапусти Caddy:
    ```bash
@@ -270,9 +255,10 @@ health_url=               # необязательный URL проверки г
 каждый поддомен вместо одного wildcard.
 
 Перед применением конфигурация проверяется `caddy validate`.
-Затем перезапускается `caddy-docker-proxy`: он собирает конфигурацию вместе
-с маршрутами Docker labels. Это даёт короткий перерыв в обслуживании при
-смене SPA-правил или обновлении Caddy. Обычный `caddy reload` базового
+Затем перезапускается controller: он собирает конфигурацию вместе
+с маршрутами Docker labels и передаёт её публичному server по отдельной
+управляющей сети. Общий lock сериализует изменения Caddy. В старой раскладке
+контейнер пересоздаётся, чтобы обновился bind-mount inode; это даёт перерыв. Обычный `caddy reload` базового
 Caddyfile использовать нельзя: в нём нет сгенерированных Docker-маршрутов. Если проверка
 не прошла, правила откатываются и Caddy не перезагружается. Если Caddy сейчас
 не запущен, правила остаются на диске и подхватятся при следующем старте.
@@ -291,6 +277,16 @@ Caddyfile использовать нельзя: в нём нет сгенери
 `public/`, иначе наружу уедет и всё остальное содержимое репозитория.
 
 ### 2. React/SPA (опционально с backend+БД)
+
+Сначала администратор устанавливает `examples/worker-policy.conf` в
+`/etc/sandbox/projects/<name>.conf` от root и указывает проверенный worker
+image digest. Образ загружается заранее. Worker имеет network none и npm
+`--offline`: зависимости должны быть доступны офлайн. Настройки сети из
+репозитория не расширяют полномочия. Ошибка не запускает сборку на хосте.
+Runtime env не выдаётся; отдельно подготовленный `state/<name>/build-env`
+доступен коду сборки. Root filesystem read-only; source read-only; writable
+output и tmp отделены от state, hook, SSH и Docker API.
+
 - Если это чистый фронт без своего сервера — `package.json` со скриптом
   `build`. Хук соберёт (`npm run build`) и опубликует `dist/`. Для
   Create React App укажи `publish_dir=build`.
@@ -298,56 +294,19 @@ Caddyfile использовать нельзя: в нём нет сгенери
   заход на вложенный маршрут вернёт 404.
 - Если есть backend и БД — нужен compose-файл, см. пункт 3.
 
-### 3. Приложение в Docker с фронтом
-Добавь в репозиторий compose-файл — распознаются `docker-compose.yml`,
-`docker-compose.yaml`, `compose.yml` и `compose.yaml`. **Одного `Dockerfile`
-недостаточно**: без compose-файла деплой остановится с объяснением.
+### 3. Docker, API и боты
 
-Пример с лейблами:
-```yaml
-services:
-  app:
-    build: .
-    labels:
-      caddy: myapp.sandbox.example.com
-      caddy.reverse_proxy: "{{upstreams 80}}"
-    networks:
-      - sandbox_net
+Новый hook распознаёт `type=docker`, но отклоняет исполнение Compose на
+host daemon, включая смену типа в коммите. Для таких проектов требуется
+отдельный rootless daemon под отдельным UID или VM и отдельная миграция
+данных/маршрутов. Автоматический dispatcher этих контуров пока не реализован.
+Работающие legacy-контейнеры этим изменением не остановлены, но новый hook
+не обновляет их. `examples/docker.sandbox.conf` описывает прежний профиль.
 
-networks:
-  sandbox_net:
-    external: true
-```
-`caddy-docker-proxy` сам увидит новый контейнер и подключит роутинг —
-Caddyfile трогать не нужно.
-
-### 4. REST API без фронтенда
-То же самое, что пункт 3, просто другой внутренний порт в
-`caddy.reverse_proxy`. Например: `"{{upstreams 8080}}"`.
-
-### 5. Контейнер без внешнего входа (например, тг-бот)
-```yaml
-services:
-  bot:
-    build: .
-    restart: unless-stopped
-    env_file: .env
-    networks:
-      - sandbox_net
-```
-Без `ports:` и без лейблов `caddy:` — контейнер просто поднимается и сам
-стучится наружу, снаружи к нему обращаться не нужно.
-
-`.env` с секретами (токен бота и т.п.) кладётся один раз вручную в
-`/srv/state/<app>/env` — в git не коммитится. Хук подкладывает его в
-рабочий каталог перед запуском compose.
-
-> Раньше здесь рекомендовался `/srv/apps/<app>/.env`. Для статических
-> проектов это было опасно: старый хук копировал в раздачу весь рабочий
-> каталог, и такой `.env` оказывался доступен по
-> `https://<app>.sandbox.<домен>/.env`. Теперь публикуется только
-> `publish_dir`, но секреты всё равно следует держать в
-> `/srv/state/<app>/env`, вне репозитория и вне публикуемого каталога.
+Caddy controller сохраняет поддержку labels существующих Docker-сервисов.
+Rootless-контейнеры не появляются автоматически в metadata host daemon:
+их ingress нужно спроектировать и проверить при миграции. Runtime secrets
+хранить вне Git/public output, с mode 0600; выдавать только нужному сервису.
 
 ## Изоляция сети между сервисами одного проекта
 
@@ -389,3 +348,16 @@ networks:
 
 Оба легко добавляются как дополнительные ветки в `deploy/hook.sh`, когда
 понадобятся.
+
+## Проверки и ограничения ресурсов
+
+`tests/run.sh` запускает unit/regression и доступные Docker-тесты. Для выпуска
+обязательны также `tests/security-integration.sh`, `tests/proxy-isolation.sh`,
+`tests/worker-isolation.sh`; отсутствие Docker/образов считается отказом этих
+проверок. Нагрузочные сценарии ограничены одноразовыми контейнерами.
+
+Новый deploy output/log ограничен 1 MiB. `cleanup-app.sh <name> --dry-run`
+показывает очистку завершённых логов; без флага применяет её под project lock.
+Настройка расписания, filesystem quotas для output/cache, Git и backup retention
+остаётся задачей применения на VPS. Эти ограничения ещё не гарантируют защиту
+общего диска. SEC-01/07/08 не считаются закрытыми только по наличию worker/pins.

@@ -1,0 +1,5 @@
+BLOCKED: candidate is not approved
+BLOCKED: final source commit is not recorded
+BLOCKED: caddy: distribution digest not verified in release registry
+BLOCKED: worker: unresolved HIGH/CRITICAL findings
+BLOCKED: worker: distribution digest not verified in release registry

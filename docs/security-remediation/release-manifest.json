@@ -1,0 +1,108 @@
+{
+  "created_at": "2026-09-20T21:04:37.258055+00:00",
+  "base_commit": "c73474823c27820a29541bb691dfe3f48908322c",
+  "source_commit": null,
+  "source_state": "uncommitted working tree on codex/security-remediation; no commit authorized",
+  "approved": false,
+  "tools": {
+    "syft": "1.52.0",
+    "trivy": "0.74.0",
+    "archives_sha256": {
+      "syft": "caeedb81fb0491615f1ebd1761e4145d41ee86dd2cc7bf80669f9f5ad9d6133d",
+      "trivy": "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
+    }
+  },
+  "vulnerability_db": {
+    "Version": 2,
+    "NextUpdate": "2026-09-21T19:19:55.870895986Z",
+    "UpdatedAt": "2026-09-20T19:19:55.870896177Z",
+    "DownloadedAt": "2026-09-20T20:44:48.45676631Z"
+  },
+  "artifacts": {
+    "caddy": {
+      "image_id": "sha256:58ee8a6a3017638c286ebbe4b9abe4873d3115b04680714bb6f9d9b99ddd56f6",
+      "local_repo_digests": [
+        "sandbox-security-caddy@sha256:58ee8a6a3017638c286ebbe4b9abe4873d3115b04680714bb6f9d9b99ddd56f6"
+      ],
+      "registry_digest_verified": false,
+      "platform": "linux/amd64",
+      "findings_by_severity": {
+        "MEDIUM": 1,
+        "UNKNOWN": 1
+      },
+      "unique_vulnerability_ids": 2,
+      "scan": {
+        "file": "caddy.scan.json",
+        "sha256": "ac6bd6b2eb0acc079e28207b5a7a0fc794bc7697da4c5a77192d41d01590cf4c"
+      },
+      "sbom": {
+        "file": "caddy.sbom.cdx.json",
+        "sha256": "a037145d6411db7ed75f17798251baf8a47b0e491bfa954096fe34b65e4c97cb"
+      }
+    },
+    "worker": {
+      "image_id": "sha256:c6e127b4b1c20926268fc309be4246378ebd308d7833566707e81bd77a5f6eba",
+      "local_repo_digests": [
+        "sandbox-security-worker@sha256:c6e127b4b1c20926268fc309be4246378ebd308d7833566707e81bd77a5f6eba"
+      ],
+      "registry_digest_verified": false,
+      "platform": "linux/amd64",
+      "findings_by_severity": {
+        "LOW": 839,
+        "HIGH": 270,
+        "MEDIUM": 1424,
+        "UNKNOWN": 359,
+        "CRITICAL": 7
+      },
+      "unique_vulnerability_ids": 2188,
+      "scan": {
+        "file": "worker.scan.json.gz",
+        "sha256": "fa33d39a28b24c4c0208ff08098e3509a96b944068af270cceb6245aae9a728d"
+      },
+      "sbom": {
+        "file": "worker.sbom.cdx.json.gz",
+        "sha256": "2e49ebd95644658c2d4745ef44c869a82aa0e81f12073b67db97427cb28dd401"
+      }
+    }
+  },
+  "source_files_sha256": {
+    "deploy/bounded-log.py": "3cbc2af1c93c9d4adb0318ed0e8da745d4ac149b7bf1c9dc1ed429de19ae5d59",
+    "deploy/cleanup-app.sh": "b3f887b928af867dcf9aee1b79361a7a64ef487fbc0e9da2a3e9eb1c27d78d80",
+    "deploy/hook.sh": "0b27954618fd6bfaeb73d12a4d71cccbaeebe0b340df4840671f474524fd82ce",
+    "deploy/lib/caddy.sh": "9253f991917c4f7565cc87e026a7b311615e554791fc14e44219fdf3331bf619",
+    "deploy/lib/common.sh": "d19a1bcabf176e6e87cf41102cc7337cce94855735ee96b5236a56819008b381",
+    "deploy/lib/migration.sh": "128f05e77c60b90f5d8b4ecde136a77ae4ce04df2b6f8eea9486455f42144135",
+    "deploy/lib/project.sh": "6c730efa295062905c623fd2471ee587ef596af936af3cff93a483fcf8910b14",
+    "deploy/lib/release.sh": "86656b5a1ed8c38aed07a6785e94e7d43dd792e4523408912d49da5875e78c39",
+    "deploy/lib/runner.sh": "761af383d7e980eba10a8d87f2be5ff36c451f38c8e52e54950f09bd9e76bd0d",
+    "deploy/list-apps.sh": "3a44c5f3d48cdbafe70c82f8dd32193d9356bece4c9e4156ea462542f6c2d6b6",
+    "deploy/logs-app.sh": "941fe00ac888d10937597a455946606c6ceb2dd1dac05c5ccf3918b564ac0c89",
+    "deploy/migrate.sh": "08010e6b3322cacf7143fd4df5f44fb6d14e554fd18799a8692518e9d1d143db",
+    "deploy/new-app.sh": "1d231473d8a4817ef7ad7c2923d7f17581273a4a64cc6ba7769b7730cbe6ce2a",
+    "deploy/redeploy-app.sh": "69f61abe893a51914339b5eb5efb64cfc84f2333c415ef4a656c4d889ab2e505",
+    "deploy/remove-app.sh": "d019b600061a9317208101d47bed16e858d719f9ed8da4a97ef3227cd8cef70c",
+    "deploy/repair-permissions.sh": "30bd183a7c0c56273828e0850f690002716be968196fa3f7f74b0471d96c0610",
+    "deploy/rollback-app.sh": "5d9cb00d3e9ad6e6312132505f19a93b20048936d26ac78450b1d235fc904c19",
+    "deploy/status-app.sh": "a7054fedde11e3e01c359e9e3433fe93af09d30ae86544ca747dad716235a88d",
+    "deploy/stop-app.sh": "1ab35ccbbcf54a547b5653dec1253350b92ccf97969903a157640f9a7b2206a6",
+    "worker/Dockerfile": "99beb1f691ebab0730fe963532012d8fe680c294c790f0c709e230f80ea03381",
+    "worker/run.sh": "27d7cd4e52c042af01066c1de5b9c9b5bc51c63b6e38bdb651d9d2a7dc718990",
+    "caddy/.env.example": "b1a9a0c0c714ddd19823950357a9194160d7c5815334a82481c1e59943aaf620",
+    "caddy/Caddyfile": "7ca5e043eea3ba10d0b58f307cf6db3459a7b5db2ef82e3cde5479baa14effde",
+    "caddy/Dockerfile": "fb916f9822843861fdde5bbd86fc406908ee75d9f18abe672f8b4bbb957bad84",
+    "caddy/docker-compose.yml": "0f8f212360599212362448070bf046ab95cd16f8de00c418db926cbb426b8c74",
+    "scripts/check-release.py": "7a2e669653cb7c1c1191116820824a109e08d4f428dd97f51534328ea3455d02",
+    "bootstrap.sh": "a7f83d12c2360aed1cae4a89ed5b72e02092ecaeb5e9f4ad7c0e8da022766582",
+    "update-infra.sh": "5d8c5d1a69f44387295104ab32be4cfd352009f0e380917f8faba972b5f2497f"
+  },
+  "verification": {
+    "assertions": 476,
+    "test_files": 15,
+    "failed": 0,
+    "skipped": 0,
+    "shellcheck": "passed including worker shell scripts",
+    "http_integration": "passed migration/deploy/rollback, GET/HEAD, encoded/nested paths, SPA and second UID",
+    "proxy_integration": "passed with read_only, cap_drop ALL, no_new_privileges; isolated control network",
+    "worker_integration": "passed limits, timeout, OOM, PID, native compilation, policy ownership; offline network only"
+  }
+}

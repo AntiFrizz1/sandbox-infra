@@ -1,0 +1,4 @@
+!! [demo] root-owned execution policy required
+!! symbolic link forbidden: /etc/sandbox/projects/link.conf
+!! [link] root-owned execution policy required
+PASS worker: readonly source, no host paths/socket, timeout/OOM/PID failures remove container, native build and next attempt succeed; root-owned policy guards

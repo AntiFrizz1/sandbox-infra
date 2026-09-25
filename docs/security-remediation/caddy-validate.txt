@@ -1,0 +1,10 @@
+{"level":"info","ts":1789938130.8441992,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
+{"level":"warn","ts":1789938130.8442943,"msg":"No files matching import glob pattern","pattern":"/srv/caddy/spa.d/*.caddy"}
+{"level":"info","ts":1789938130.8452265,"msg":"adapted config to JSON","adapter":"caddyfile"}
+{"level":"warn","ts":1789938130.8452346,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":2}
+{"level":"info","ts":1789938130.845616,"logger":"http.auto_https","msg":"server is listening only on the HTTPS port but has no TLS connection policies; adding one to enable TLS","server_name":"srv0","https_port":443}
+{"level":"info","ts":1789938130.845628,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
+{"level":"info","ts":1789938130.8456807,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x1be830388f00"}
+{"level":"info","ts":1789938130.845931,"logger":"http","msg":"servers shutting down with eternal grace period"}
+{"level":"info","ts":1789938130.845955,"logger":"tls.cache.maintenance","msg":"stopped background certificate maintenance","cache":"0x1be830388f00"}
+Valid configuration
