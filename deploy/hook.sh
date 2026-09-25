@@ -56,6 +56,8 @@ if [[ "$NEWREV" == "$ZERO_SHA" ]]; then
     exit 0
 fi
 
+is_log_sha "$NEWREV" || die "invalid revision"
+umask 077
 SHORT_SHA="${NEWREV:0:12}"
 
 # --- 2. Блокировка ----------------------------------------------------------
@@ -63,18 +65,23 @@ SHORT_SHA="${NEWREV:0:12}"
 # пересекаться.
 lock_app "$APP_NAME"
 [[ -d "$REPO_DIR" ]] || die "[$APP_NAME] репозиторий удалён"
-mkdir -p "$STATEDIR/logs"
+prepare_state "$APP_NAME" || die "unsafe state"
 
 # --- 3. Журнал и исход ------------------------------------------------------
 LOG_FILE="$STATEDIR/logs/$NEWREV.log"
 DEPLOYS_LOG="$STATEDIR/deploys.tsv"
+private_file "$LOG_FILE" || die "unsafe log file"
+private_file "$DEPLOYS_LOG" || die "unsafe history"
 STARTED_AT=$(date +%s)
 DEPLOY_OK=false
 
 record_outcome() {
-    printf '%s\t%s\t%s\t%s\t%ss\n' \
+    local line
+    printf -v line '%s\t%s\t%s\t%s\t%ss' \
         "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$DEPLOY_BRANCH" "$NEWREV" \
-        "$1" "$(( $(date +%s) - STARTED_AT ))" >> "$DEPLOYS_LOG"
+        "$1" "$(( $(date +%s) - STARTED_AT ))"
+    append_private_line "$DEPLOYS_LOG" "$line"
+
 }
 
 on_exit() {

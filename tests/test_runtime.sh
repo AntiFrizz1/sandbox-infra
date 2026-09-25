@@ -25,6 +25,8 @@ trap cleanup EXIT
 
 docker run --rm -i -v "$ROOT:/repo:ro" debian:bookworm-slim bash -s >"$SB/owners.log" 2>&1 <<'SCRIPT'
 set -euo pipefail
+apt-get update -qq
+apt-get install -y -qq rsync
 export SANDBOX_GIT_ROOT=/tmp/test/git SANDBOX_APPS_ROOT=/tmp/test/apps
 export SANDBOX_SITES_ROOT=/tmp/test/sites SANDBOX_STATE_ROOT=/tmp/test/state
 export SANDBOX_DEPLOY_OWNER=nobody:nogroup
@@ -39,9 +41,23 @@ touch /tmp/test/state/demo/logs/new.log
 echo ok >> /tmp/test/state/demo/releases.tsv
 echo ok >> /tmp/test/state/.locks/demo.lock
 mkdir /tmp/test/sites/demo/releases/new
+echo safe > /tmp/test/sites/demo/releases/new/index.html
 ln -s releases/new /tmp/test/sites/demo/next
 mv -T /tmp/test/sites/demo/next /tmp/test/sites/demo/current
 '
+# A separate UID cannot read state created/repaired by the real helpers.
+echo SYNTHETIC > "$SANDBOX_STATE_ROOT/demo/env"
+chmod 644 "$SANDBOX_STATE_ROOT/demo/env"
+mkdir -p /tmp/test/caddy
+echo TIMEWEB_API_TOKEN=SYNTHETIC > /tmp/test/caddy/.env
+chmod 644 /tmp/test/caddy/.env
+SANDBOX_CADDY_DIR=/tmp/test/caddy bash /repo/deploy/repair-permissions.sh
+[[ $(stat -c %a "$SANDBOX_STATE_ROOT/demo/env") == 600 ]]
+# Compose run by deploy reads the Caddy .env; other UIDs must not.
+[[ $(stat -c '%a %U:%G' /tmp/test/caddy/.env) == '640 root:nogroup' ]]
+su -s /bin/sh nobody -c 'test -r /tmp/test/caddy/.env'
+su -s /bin/sh daemon -c 'test ! -r /tmp/test/caddy/.env'
+su -s /bin/sh daemon -c 'test ! -r /tmp/test/state/demo/env && test ! -r /tmp/test/state/demo/logs/new.log'
 # Повторная миграция исправляет владельцев после прежней версии скрипта.
 chown root:root "$SANDBOX_STATE_ROOT/demo" "$SANDBOX_SITES_ROOT/demo/releases"
 bash /repo/deploy/migrate.sh state

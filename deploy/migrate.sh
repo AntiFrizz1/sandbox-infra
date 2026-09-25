@@ -158,6 +158,7 @@ fi
 # ============================== state =======================================
 if [[ "$COMMAND" == state ]]; then
     log "Создаю серверное состояние проектов"
+    assert_plain_path "$SANDBOX_STATE_ROOT/.locks" || die "unsafe lock directory"
     run mkdir -p "$SANDBOX_STATE_ROOT/.locks"
     run set_deploy_owner "$SANDBOX_STATE_ROOT" "$SANDBOX_STATE_ROOT/.locks"
     while IFS= read -r name; do
@@ -167,20 +168,28 @@ if [[ "$COMMAND" == state ]]; then
             continue
         }
 
+        [[ $DRY_RUN == true ]] || lock_app "$name"
         state="$(app_state_dir "$name")"
+        require_plain_under "$SANDBOX_STATE_ROOT" "$state/logs" || die "unsafe state path"
+        for owned in "$state/config" "$state/env" "$state/deploys.tsv" "$state/releases.tsv"; do
+            assert_plain_path "$owned" || die "unsafe state file"
+        done
         work="$(app_work_dir  "$name")"
         type=$(migrate_detect_type "$name")
 
         if [[ -f "$state/config" ]]; then
             echo "   $name: конфиг уже есть, содержимое сохраняю"
+            run prepare_state "$name"
+            run chmod 600 "$state/config"
             run set_deploy_owner "$state" "$state/config"
             for owned in "$state/logs" "$state/releases.tsv" "$state/deploys.tsv" "$state/env"; do
                 [[ ! -e $owned ]] || run set_deploy_owner "$owned"
+                [[ ! -f $owned ]] || run chmod 600 "$owned"
             done
             continue
         fi
 
-        run mkdir -p "$state/logs"
+        run prepare_state "$name"
 
         publish_dir=""
         build_cmd=""
@@ -224,88 +233,44 @@ if [[ "$COMMAND" == state ]]; then
         # прежний файл до конца миграции, и откат остаётся возможным.
         if [[ -f "$work/.env" && ! -e "$state/env" ]]; then
             echo "   $name: переношу .env в $state/env"
-            run cp -a "$work/.env" "$state/env"
+            run install_private "$work/.env" "$state/env"
         fi
 
+        run chmod 600 "$state/config"
         run touch "$(app_lock_file "$name")"
         run set_deploy_owner "$state" "$state/logs" "$state/config" "$(app_lock_file "$name")"
         [[ ! -f "$state/env" ]] || run set_deploy_owner "$state/env"
     done < <(list_projects)
 
     echo
-    log "Готово. Откат этой фазы: rm -rf $SANDBOX_STATE_ROOT"
+    log "Готово. Private state сохранять; восстановление — по security runbook."
     exit 0
 fi
 
 # ============================== sites =======================================
 if [[ "$COMMAND" == sites ]]; then
-
-    if [[ "$REVERT" == true ]]; then
-        log "Возвращаю плоскую раскладку /srv/sites"
-        while IFS= read -r name; do
-            [[ -n "$name" ]] || continue
-            site="$(app_site_dir "$name")"
-            [[ -L "$site/current" ]] || continue
-
-            target="$site/$(readlink "$site/current")"
-            [[ -d "$target" ]] || { warn "$name: current ведёт в никуда, пропускаю"; continue; }
-
-            echo "   $name: $(basename "$target") → плоский каталог"
-            if [[ "$DRY_RUN" != true ]]; then
-                mv "$target" "$site.flat"
-                safe_rm_rf "$SANDBOX_SITES_ROOT" "$site" || die "$name: откат прерван"
-                mv "$site.flat" "$site"
-            fi
-        done < <(list_projects)
-        echo
-        log "Готово. Не забудь вернуть прежний Caddyfile из бэкапа."
-        exit 0
-    fi
-
-    log "Перевожу /srv/sites на релизную раскладку"
-    stamp="legacy-$(date +%Y%m%d-%H%M%S)"
-
+    # shellcheck source=deploy/lib/migration.sh
+    source "$SCRIPT_DIR/lib/migration.sh"
+    failed=0
     while IFS= read -r name; do
-        [[ -n "$name" ]] || continue
-        is_valid_app_name "$name" || { warn "$name: имя не проходит валидацию, пропускаю"; continue; }
-
-        site="$(app_site_dir "$name")"
-        [[ -d "$site" ]] || continue
-
-        if [[ -L "$site/current" ]]; then
-            echo "   $name: уже мигрирован, содержимое сохраняю"
-            run set_deploy_owner "$site" "$site/releases" "$site/current"
-            [[ ! -f "$(releases_log "$name")" ]] || run set_deploy_owner "$(releases_log "$name")"
+        [[ -n $name ]] || continue
+        if ! is_valid_app_name "$name"; then
+            warn "$name: invalid name, skipped"
             continue
         fi
-
-        if [[ -d "$site/releases" ]]; then
-            warn "$name: есть releases/, но нет current — разбирайся вручную"
-            continue
-        fi
-
-        echo "   $name: → releases/$stamp"
-        if [[ "$DRY_RUN" != true ]]; then
-            mv "$site" "$site.migrating"
-            mkdir -p "$site/releases"
-            mv "$site.migrating" "$site/releases/$stamp"
-            # Ссылка ОТНОСИТЕЛЬНАЯ: Caddy видит /srv/sites через bind-mount,
-            # и абсолютный путь разрешился бы только по совпадению путей.
-            ln -sfn "releases/$stamp" "$site/current"
-
-            # Без записи в журнал ротация удалила бы этот релиз при первом
-            # же деплое — вместе с возможностью откатиться на версию,
-            # которая работала до миграции.
-            mkdir -p "$(app_state_dir "$name")"
-            record_release "$name" "$stamp"
-            set_deploy_owner "$site" "$site/releases" "$site/current" \
-                "$(app_state_dir "$name")" "$(releases_log "$name")"
+        # A subshell releases each project's lock before moving to the next.
+        set +e
+        (
+            set -e
+            [[ $DRY_RUN == true ]] || lock_app "$name"
+            migrate_site "$name"
+        )
+        rc=$?
+        set -e
+        if (( rc != 0 )); then
+            warn "$name: FAILED/skipped; previously completed projects remain completed"
+            failed=1
         fi
     done < <(list_projects)
-
-    echo
-    log "Готово."
-    echo "   Дальше: обнови Caddyfile (./update-infra.sh --caddy-only)."
-    echo "   Откат этой фазы: migrate.sh sites --revert"
-    exit 0
+    exit "$failed"
 fi

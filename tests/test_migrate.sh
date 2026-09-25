@@ -16,6 +16,7 @@ export SANDBOX_GIT_ROOT="$SB/srv/git"
 export SANDBOX_APPS_ROOT="$SB/srv/apps"
 export SANDBOX_SITES_ROOT="$SB/srv/sites"
 export SANDBOX_STATE_ROOT="$SB/srv/state"
+export SANDBOX_MIGRATION_BACKUPS="$SB/backups"
 
 # Слепок «старой» инфраструктуры: плоская статика, node-проект с build/,
 # docker-проект, проект только с Dockerfile и проект с невалидным именем.
@@ -137,8 +138,7 @@ assert_missing "current убран"       "$SITE/current"
 assert_missing "releases убран"      "$SITE/releases"
 assert_eq      "содержимое на месте" "<h1>плоский сайт</h1>" \
     "$(cat "$SITE/index.html")"
-assert_eq      "секрет тоже вернулся как был" "TOKEN=секрет" \
-    "$(cat "$SITE/.env")"
+assert_missing "секрет не возвращается в публичную раздачу" "$SITE/.env"
 
 echo
 echo "== миграция не выходит за пределы своих каталогов =="

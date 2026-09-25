@@ -16,6 +16,7 @@ source "$ROOT/deploy/lib/common.sh"
 source "$ROOT/deploy/lib/caddy.sh"
 
 SB=$(make_sandbox)
+export SANDBOX_STATE_ROOT="$SB/state"
 CONTAINER="sandbox-spa-test-$$"
 cleanup() {
     docker rm -f "$CONTAINER" >/dev/null 2>&1
@@ -45,41 +46,51 @@ echo "== sync_spa_config: реакция на состояние Caddy =="
 # Подменяем зависимости от живого Caddy, чтобы проверить ветки решений.
 caddy_available() { return "$FAKE_AVAILABLE"; }
 caddy_validate()  { return "$FAKE_VALID"; }
-caddy_reload()    { FAKE_RELOADED=$((FAKE_RELOADED + 1)); return 0; }
+caddy_reload()    { echo reload >> "$SB/reloads"; return 0; }
 
 SNIP="$SB/spa.d/app-a.caddy"
 
-FAKE_AVAILABLE=1 FAKE_VALID=0 FAKE_RELOADED=0
+FAKE_AVAILABLE=1 FAKE_VALID=0; : > "$SB/reloads"
 assert_ok     "Caddy не запущен — sync не считается ошибкой" \
     sync_spa_config app-a true "$DOMAIN"
 assert_exists "правила всё равно записаны на диск" "$SNIP"
-assert_eq     "перезагрузки не было" "0" "$FAKE_RELOADED"
+assert_eq     "перезагрузки не было" "0" "$(wc -l < "$SB/reloads")"
 rm -f "$SNIP"
 
-FAKE_AVAILABLE=0 FAKE_VALID=0 FAKE_RELOADED=0
+FAKE_AVAILABLE=0 FAKE_VALID=0; : > "$SB/reloads"
 assert_ok     "Caddy запущен и конфиг валиден" sync_spa_config app-a true "$DOMAIN"
 assert_exists "правила записаны" "$SNIP"
-assert_eq     "Caddy перезагружен один раз" "1" "$FAKE_RELOADED"
+assert_eq     "Caddy перезагружен один раз" "1" "$(wc -l < "$SB/reloads")"
 
-FAKE_AVAILABLE=0 FAKE_VALID=0 FAKE_RELOADED=0
+FAKE_AVAILABLE=0 FAKE_VALID=0; : > "$SB/reloads"
 assert_ok "повторный вызов без изменений ничего не делает" \
     sync_spa_config app-a true "$DOMAIN"
-assert_eq "лишней перезагрузки нет" "0" "$FAKE_RELOADED"
+assert_eq "лишней перезагрузки нет" "0" "$(wc -l < "$SB/reloads")"
 
 # Невалидный конфиг: изменения должны откатиться, а не остаться лежать.
 printf 'старое содержимое\n' > "$SNIP"
-FAKE_AVAILABLE=0 FAKE_VALID=1 FAKE_RELOADED=0
+FAKE_AVAILABLE=0 FAKE_VALID=1; : > "$SB/reloads"
 assert_fail "невалидный конфиг — sync сообщает об ошибке" \
     sync_spa_config app-a true "$DOMAIN"
 assert_eq "прежнее содержимое восстановлено" \
     "старое содержимое" "$(cat "$SNIP")"
-assert_eq "перезагрузки не было" "0" "$FAKE_RELOADED"
+assert_eq "перезагрузки не было" "0" "$(wc -l < "$SB/reloads")"
 
 rm -f "$SNIP"
-FAKE_AVAILABLE=0 FAKE_VALID=1 FAKE_RELOADED=0
+FAKE_AVAILABLE=0 FAKE_VALID=1; : > "$SB/reloads"
 assert_fail "невалидный конфиг при первом включении" \
     sync_spa_config app-a true "$DOMAIN"
 assert_missing "новый файл правил удалён" "$SNIP"
+
+# A project named "caddy" must not wait on the shared proxy lock.
+caddy_named_project() (
+    SANDBOX_LOCK_TIMEOUT=2
+    lock_app caddy
+    sync_spa_config caddy true "$DOMAIN"
+)
+FAKE_AVAILABLE=0 FAKE_VALID=0; : > "$SB/reloads"
+assert_ok "проект caddy не блокирует сам себя" caddy_named_project
+rm -f "$SB/spa.d/caddy.caddy"
 
 unset -f caddy_available caddy_validate caddy_reload
 # shellcheck source=deploy/lib/caddy.sh
@@ -128,6 +139,10 @@ cat > "$SB/Caddyfile" <<EOF
 	}
 }
 EOF
+
+sed -n '/^(sandbox_public_guard)/,/^}/p' "$ROOT/caddy/Caddyfile" > "$SB/guard"
+cat "$SB/Caddyfile" >> "$SB/guard"
+mv "$SB/guard" "$SB/Caddyfile"
 
 if ! docker run -d --name "$CONTAINER" \
         -v "$SB/Caddyfile:/etc/caddy/Caddyfile:ro" \

@@ -21,6 +21,8 @@ STATEDIR="$(app_state_dir "$NAME")"
 LOGDIR="$STATEDIR/logs"
 DEPLOYS="$STATEDIR/deploys.tsv"
 
+require_plain_under "$SANDBOX_STATE_ROOT" "$LOGDIR" || die "unsafe log directory"
+assert_plain_path "$DEPLOYS" || die "unsafe history path"
 [[ -d "$LOGDIR" ]] || die "[$NAME] логов деплоя нет"
 
 if [[ "$WANT" == "--list" ]]; then
@@ -37,6 +39,8 @@ if [[ -z "$WANT" ]]; then
     WANT=$(tail -1 "$DEPLOYS" | cut -f3)
 fi
 
+is_log_sha "$WANT" || die "invalid log SHA (lowercase hex, 1–64 characters)"
+
 # Короткий sha разворачивается по имеющимся логам.
 LOG="$LOGDIR/$WANT.log"
 if [[ ! -f "$LOG" ]]; then
@@ -49,5 +53,7 @@ if [[ ! -f "$LOG" ]]; then
     esac
 fi
 
+require_plain_under "$LOGDIR" "$LOG" || die "unsafe log path"
+is_log_sha "$(basename "$LOG" .log)" || die "invalid log filename"
 echo "=== $LOG ==="
 cat "$LOG"

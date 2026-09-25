@@ -126,7 +126,11 @@ app_lock_file() { printf '%s/.locks/%s.lock\n' "$SANDBOX_STATE_ROOT" "$1"; }
 lock_app() {
     require_valid_app_name "$1"
     command -v flock >/dev/null 2>&1 || die "flock обязателен (пакет util-linux)"
+    assert_plain_path "$SANDBOX_STATE_ROOT/.locks/$1.lock" || die "unsafe lock path"
     mkdir -p "$SANDBOX_STATE_ROOT/.locks"
+    chmod 750 "$SANDBOX_STATE_ROOT/.locks"
+    (umask 027; touch "$(app_lock_file "$1")")
+    set_deploy_owner "$SANDBOX_STATE_ROOT/.locks" "$(app_lock_file "$1")"
     exec 9>"$(app_lock_file "$1")"
     flock -w "${SANDBOX_LOCK_TIMEOUT:-600}" 9 \
         || die "[$1] другая операция над проектом уже выполняется"
@@ -138,4 +142,67 @@ set_deploy_owner() {
     if (( EUID == 0 )); then
         chown -h "${SANDBOX_DEPLOY_OWNER:-deploy:deploy}" "$@"
     fi
+}
+
+# Reject links in every component, including dangling links. This is a path
+# guard, not a defence against concurrent hostile processes with the same UID.
+assert_plain_path() {
+    local path=$1 part cursor=""
+    [[ $path == /* && $path != *'/../'* && $path != */.. ]] || return 1
+    local -a parts
+    IFS=/ read -r -a parts <<< "$path"
+    for part in "${parts[@]}"; do
+        [[ -n $part && $part != . ]] || continue
+        cursor="$cursor/$part"
+        [[ ! -L $cursor ]] || { warn "symbolic link forbidden: $cursor"; return 1; }
+    done
+}
+
+require_plain_under() {
+    resolve_under "$1" "$2" >/dev/null && assert_plain_path "$2"
+}
+
+is_log_sha() { [[ ${1-} =~ ^[a-f0-9]{1,64}$ ]]; }
+is_release_id() { [[ ${1-} =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$ ]]; }
+
+private_dir() {
+    assert_plain_path "$1" || return 1
+    mkdir -p -- "$1" && chmod 700 -- "$1"
+}
+
+# Atomic replacement also repairs a pre-existing 0644 destination.
+install_private() {
+    local src=$1 dst=$2 tmp
+    assert_plain_path "$src" && assert_plain_path "$dst" || return 1
+    [[ -f $src ]] || return 1
+    tmp=$(mktemp "${dst}.XXXXXX") || return 1
+    if cat -- "$src" > "$tmp" && chmod 600 "$tmp" && mv -T -- "$tmp" "$dst"; then
+        return 0
+    fi
+    rm -f -- "$tmp"
+    return 1
+}
+
+prepare_state() {
+    local state
+    state=$(app_state_dir "$1")
+    require_plain_under "$SANDBOX_STATE_ROOT" "$state" || return 1
+    private_dir "$state" && private_dir "$state/logs"
+}
+
+private_file() {
+    assert_plain_path "$1" || return 1
+    [[ ! -e $1 || -f $1 ]] || return 1
+    [[ ! -e $1 || $(stat -c %h "$1") == 1 ]] || return 1
+    (umask 077; touch -- "$1") && chmod 600 -- "$1"
+}
+
+# Readers (status) never acquire this lock. Writers replace the whole journal.
+append_private_line() {
+    local path=$1 line=$2 tmp
+    private_file "$path" || return 1
+    tmp=$(mktemp "${path}.XXXXXXXX") || return 1
+    if cat "$path" > "$tmp" && printf '%s\n' "$line" >> "$tmp" && set_deploy_owner "$tmp" && mv -T "$tmp" "$path"; then return 0; fi
+    rm -f "$tmp"
+    return 1
 }

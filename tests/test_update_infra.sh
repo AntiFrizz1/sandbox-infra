@@ -11,6 +11,7 @@ source "$HERE/lib.sh"
 SB=$(make_sandbox)
 trap 'rm -rf "$SB"' EXIT
 
+export SANDBOX_STATE_ROOT="$SB/state"
 export SANDBOX_DEPLOY_DIR="$SB/srv/deploy"
 export SANDBOX_CADDY_DIR="$SB/srv/caddy"
 export SANDBOX_CADDY_SPA_DIR="$SB/srv/caddy/spa.d"

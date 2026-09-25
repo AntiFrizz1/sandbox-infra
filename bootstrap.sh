@@ -43,7 +43,7 @@ fi
 
 # --- 2. Структура каталогов ---
 mkdir -p /srv/git /srv/apps /srv/sites /srv/state /srv/deploy /srv/caddy
-chown -R deploy:deploy /srv/git /srv/apps /srv/sites /srv/state /srv/deploy
+chown -R deploy:deploy /srv/git /srv/apps /srv/sites /srv/state
 
 # util-linux: нужен для flock, которым сериализуются операции над проектом
 apt-get install -y util-linux
@@ -55,8 +55,8 @@ docker network inspect sandbox_net &>/dev/null || docker network create sandbox_
 # Копируется весь каталог deploy/, включая lib/ — скрипты подключают
 # lib/common.sh относительно собственного расположения.
 mkdir -p /srv/deploy/lib
-install -m 755 -o deploy -g deploy "$SCRIPT_DIR"/deploy/*.sh /srv/deploy/
-install -m 644 -o deploy -g deploy "$SCRIPT_DIR"/deploy/lib/*.sh /srv/deploy/lib/
+install -m 755 -o root -g root "$SCRIPT_DIR"/deploy/*.sh /srv/deploy/
+install -m 644 -o root -g root "$SCRIPT_DIR"/deploy/lib/*.sh /srv/deploy/lib/
 
 # --- 4a. Общий конфиг: домен и SSH-хост ---
 # Пишется один раз, чтобы new-app.sh печатал реальный домен, а не плейсхолдер.
@@ -95,9 +95,17 @@ mkdir -p /srv/caddy/spa.d
 chown deploy:deploy /srv/caddy/spa.d
 
 if [[ ! -f /srv/caddy/.env ]]; then
-    cp "$SCRIPT_DIR/caddy/.env.example" /srv/caddy/.env
+    [[ ! -L /srv/caddy/.env ]] || { echo "unsafe Caddy env symlink" >&2; exit 1; }
+    install -m 640 -o root -g deploy "$SCRIPT_DIR/caddy/.env.example" /srv/caddy/.env
     echo "!! Отредактируй /srv/caddy/.env — впиши TIMEWEB_API_TOKEN"
 fi
+
+# deploy drives Compose from hooks, and Compose must read .env. deploy is in
+# the docker group and can read the token via docker inspect anyway;
+# the mode keeps it from every other UID.
+[[ ! -L /srv/caddy/.env ]] || exit 1
+chown root:deploy /srv/caddy/.env
+chmod 640 /srv/caddy/.env
 
 echo "==> Собираю кастомный образ Caddy (timeweb + docker-proxy)"
 docker build -t sandbox-caddy:latest "$SCRIPT_DIR/caddy"

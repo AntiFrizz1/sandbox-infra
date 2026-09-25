@@ -14,7 +14,7 @@ SANDBOX_KEEP_RELEASES="${SANDBOX_KEEP_RELEASES:-5}"
 
 # Файлы, которые никогда не попадают в раздачу, даже при publish_dir=.
 SANDBOX_PUBLISH_EXCLUDES=(
-    '.git' '.git/**' '.gitignore' '.gitattributes'
+    '.*' # .well-known is explicitly included by copy_public_tree
     '.env' '.env.*' '*.env'
     '.sandbox.conf'
     '*.pem' '*.key' 'id_rsa*' 'id_ed25519*'
@@ -56,14 +56,59 @@ validate_release_output() {
     return 0
 }
 
+# Shared publication policy: dot paths except .well-known, env and key files.
+public_name_allowed() {
+    case "$1" in
+        .well-known) return 0 ;;
+        .*|*.env|*.pem|*.key|id_rsa*|id_ed25519*) return 1 ;;
+    esac
+}
+
+validate_public_tree() {
+    local dir=$1 item
+    assert_plain_path "$dir" && validate_release_output "$dir" || return 1
+    assert_no_escaping_symlinks "$dir" || return 1
+    while IFS= read -r -d '' item; do
+        public_name_allowed "${item##*/}" || { warn "private path in release: $item"; return 1; }
+        [[ -f $item || -d $item || -L $item ]] || return 1
+        # Broken links include links to excluded secrets; never publish them.
+        [[ ! -L $item || -e $item ]] || return 1
+    done < <(find "$dir" -mindepth 1 -print0)
+}
+
+copy_public_tree() {
+    local src=$1 dst=$2 pat
+    local -a excludes=()
+    assert_plain_path "$src" && assert_no_escaping_symlinks "$src" || return 1
+    for pat in "${SANDBOX_PUBLISH_EXCLUDES[@]}"; do excludes+=(--exclude="$pat"); done
+    rsync -rlt --include='.well-known/' "${excludes[@]}" "$src/" "$dst/" || return 1
+    validate_public_tree "$dst" || return 1
+    find "$dst" -type d -exec chmod 755 {} +
+    find "$dst" -type f -exec chmod 644 {} +
+}
+
+validate_site_layout() {
+    local site=$1 target
+    require_plain_under "$SANDBOX_SITES_ROOT" "$site/releases" || return 1
+    [[ -L $site/current ]] || return 1
+    target=$(readlink "$site/current") || return 1
+    [[ $target == releases/* && ${target#releases/} != */* ]] || return 1
+    is_release_id "${target#releases/}" || return 1
+    require_plain_under "$site/releases" "$site/$target" && [[ -d $site/$target ]]
+}
+
 # publish_release <name> <sha> <srcdir>
 # Копирует сборку в releases/<sha> и атомарно переключает current.
 # Любая ошибка до переключения оставляет предыдущий релиз нетронутым.
 publish_release() {
     [[ $# -eq 3 ]] || return 2
     local name=$1 sha=$2 src=$3
-    local site rel staging id tmp_link excludes=()
+    local site rel staging id tmp_link
 
+    require_valid_app_name "$name"
+    is_release_id "$sha" || return 1
+    require_plain_under "$SANDBOX_SITES_ROOT" "$(release_root "$name")" || return 1
+    prepare_state "$name" || return 1
     site="$(app_site_dir "$name")"
     rel="$(release_dir "$name" "$sha")"
 
@@ -74,6 +119,9 @@ publish_release() {
     }
 
     mkdir -p "$(release_root "$name")"
+    # The hook runs with umask 077, and the proxy runs without
+    # CAP_DAC_OVERRIDE: it must be able to traverse the public parents.
+    chmod 755 "$site" "$(release_root "$name")" || return 1
 
     # Не изменяем ни один опубликованный каталог, даже для того же SHA.
     staging=$(mktemp -d "$(release_root "$name")/.${sha}.XXXXXX") || return 1
@@ -84,19 +132,10 @@ publish_release() {
         rel="$(release_dir "$name" "$id")"
     fi
 
-    local pat
-    for pat in "${SANDBOX_PUBLISH_EXCLUDES[@]}"; do
-        excludes+=( --exclude="$pat" )
-    done
-
-    # Без -L: симлинки копируются как симлинки, а не разыменовываются.
-    rsync -a --delete "${excludes[@]}" "$src/" "$staging/" || {
+    copy_public_tree "$src" "$staging" || {
         safe_rm_rf "$SANDBOX_SITES_ROOT" "$staging"
-        warn "не удалось скопировать сборку в $rel"
         return 1
     }
-
-    validate_release_output "$staging" || { safe_rm_rf "$SANDBOX_SITES_ROOT" "$staging"; return 1; }
 
     # Имя staging начинается с точки, а prune_releases обходит releases/*
     # обычным glob'ом — без dotglob такой каталог не удалит уже никто,
@@ -126,8 +165,11 @@ publish_release() {
 record_release() {
     local name=$1 sha=$2 log
     log="$(releases_log "$name")"
-    mkdir -p "$(dirname "$log")"
-    printf '%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$sha" >> "$log"
+    prepare_state "$name" || return 1
+    private_file "$log" || return 1
+    local line
+    printf -v line '%s\t%s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$sha"
+    append_private_line "$log" "$line"
 }
 
 # release_history <name> — sha успешных релизов, новые сверху, без повторов.
@@ -177,9 +219,12 @@ prune_releases() {
 rollback_release() {
     local name=$1 want=${2-} current target="" sha site tmp_link
     site="$(app_site_dir "$name")"
+    require_plain_under "$SANDBOX_SITES_ROOT" "$site/releases" || return 1
     current=$(current_release_id "$name" || true)
 
     if [[ -n $want ]]; then
+        is_release_id "$want" || return 1
+        require_plain_under "$site/releases" "$(release_dir "$name" "$want")" || return 1
         [[ -d "$(release_dir "$name" "$want")" ]] || {
             warn "релиз '$want' не найден среди сохранённых"
             return 1
@@ -187,7 +232,7 @@ rollback_release() {
         target=$want
     else
         while IFS= read -r sha; do
-            [[ -n $sha ]] || continue
+            is_release_id "$sha" || continue
             [[ $sha == "$current" ]] && continue
             [[ -d "$(release_dir "$name" "$sha")" ]] || continue
             target=$sha
@@ -199,6 +244,10 @@ rollback_release() {
         warn "нет предыдущего релиза, к которому можно откатиться"
         return 1
     }
+
+    is_release_id "$target" || return 1
+    require_plain_under "$site/releases" "$(release_dir "$name" "$target")" || return 1
+    validate_public_tree "$(release_dir "$name" "$target")" || return 1
 
     tmp_link="$site/.current.$$.tmp"
     rm -f "$tmp_link"

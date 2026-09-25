@@ -3,6 +3,17 @@
     cert_issuer acme
 }
 
+# Kept inside route: denial must precede SPA rewrite.
+(sandbox_public_guard) {
+    @sandbox_private {
+        path_regexp sandbox_private (^|/)(\.[^/]+|[^/]*\.(env|pem|key)|id_rsa[^/]*|id_ed25519[^/]*)(/|$)
+        not path /.well-known/*
+    }
+    respond @sandbox_private 403
+    @sandbox_wellknown_private path_regexp sandbox_wellknown_private ^/\.well-known/([^/]+/)*(\.[^/]+|[^/]*\.(env|pem|key)|id_rsa[^/]*|id_ed25519[^/]*)(/|$)
+    respond @sandbox_wellknown_private 403
+}
+
 # Статические сайты и SPA-сборки (кейсы 1 и 2 без своего backend)
 # лежат в /srv/sites/<app-name>/ и раздаются напрямую отсюда.
 # Wildcard-сертификат требует DNS-01 — указываем его только здесь.
@@ -28,7 +39,10 @@
         # Раздаётся ссылка current, а не сам каталог проекта: она
         # переключается атомарно после успешной сборки.
         root * /srv/sites/{re.app.1}/current
-        file_server
+        route {
+            import sandbox_public_guard
+            file_server
+        }
     }
 
     handle {

@@ -83,7 +83,7 @@ if [[ "$DO_SCRIPTS" == true ]]; then
         # Симлинки post-receive в bare-репозиториях указывают сюда же,
         # поэтому отдельно их обновлять не нужно.
         if id deploy &>/dev/null; then
-            chown -R deploy:deploy "$SANDBOX_DEPLOY_DIR"
+            chown -R root:root "$SANDBOX_DEPLOY_DIR"
         fi
     fi
     echo "   готово"
@@ -91,8 +91,9 @@ fi
 
 # --- конфигурация Caddy -----------------------------------------------------
 if [[ "$DO_CADDY" == true ]]; then
+    [[ $DRY_RUN == true ]] || lock_caddy || die "Caddy lock unavailable"
     TEMPLATE="$SRC_DIR/caddy/Caddyfile"
-    LIVE="$SANDBOX_CADDY_DIR/Caddyfile"
+    LIVE="$(caddy_config_path)"
 
     [[ -f "$TEMPLATE" ]] || die "шаблон не найден: $TEMPLATE"
 
@@ -141,18 +142,22 @@ if [[ "$DO_CADDY" == true ]]; then
                 cp -a "$LIVE" "$BACKUP_DIR/Caddyfile-$STAMP"
                 echo "   бэкап: $BACKUP_DIR/Caddyfile-$STAMP"
 
-                cp "$NEW" "$LIVE"
+                atomic_caddy_file "$LIVE" "$(cat "$NEW")"
 
                 # Проверяем уже установленный файл: именно его прочитает Caddy.
                 if caddy_available; then
                     if caddy_validate >/dev/null 2>&1; then
                         echo "   caddy validate: ок"
-                        caddy_reload >/dev/null \
-                            && echo "   Caddy перезагружен" \
-                            || warn "caddy reload не удался — проверь вручную"
+                        if caddy_reload >/dev/null; then
+                            echo "   Caddy перезагружен"
+                        else
+                            atomic_caddy_file "$LIVE" "$(cat "$BACKUP_DIR/Caddyfile-$STAMP")"
+                            caddy_reload >/dev/null 2>&1 || warn "restored config could not be applied"
+                            die "Caddy reload failed; previous config restored"
+                        fi
                     else
                         warn "новая конфигурация не прошла валидацию — откатываю"
-                        cp -a "$BACKUP_DIR/Caddyfile-$STAMP" "$LIVE"
+                        atomic_caddy_file "$LIVE" "$(cat "$BACKUP_DIR/Caddyfile-$STAMP")"
                         caddy_validate >/dev/null 2>&1 \
                             || warn "и прежняя конфигурация не валидна — разбирайся вручную"
                         die "конфигурация Caddy не обновлена"

@@ -39,6 +39,8 @@ render_spa_snippet() {
 handle @spa_${name} {
 	root * ${SANDBOX_SITES_MOUNT}/${name}/current
 
+	route {
+	import sandbox_public_guard
 	# Fallback на index.html только для того, что похоже на маршрут
 	# приложения: существующие файлы отдаются как есть, а отсутствующие
 	# ассеты честно возвращают 404.
@@ -49,8 +51,32 @@ handle @spa_${name} {
 	rewrite @spa_${name}_route /index.html
 
 	file_server
+	}
 }
 EOF
+}
+
+# Project names cannot start with a dot, so this never shares a file with a
+# project lock (a project named "caddy" would otherwise wait on itself).
+caddy_lock_file() { printf '%s/.locks/.caddy.lock\n' "$SANDBOX_STATE_ROOT"; }
+
+# Always acquire after a project lock; infra update acquires only this lock.
+lock_caddy() {
+    assert_plain_path "$(caddy_lock_file)" || return 1
+    mkdir -p "$SANDBOX_STATE_ROOT/.locks"
+    (umask 027; touch "$(caddy_lock_file)")
+    set_deploy_owner "$SANDBOX_STATE_ROOT/.locks" "$(caddy_lock_file)"
+    exec 8>"$(caddy_lock_file)"
+    flock -w "${SANDBOX_LOCK_TIMEOUT:-600}" 8
+}
+
+atomic_caddy_file() {
+    local path=$1 body=$2 tmp
+    assert_plain_path "$path" || return 1
+    tmp=$(mktemp "${path}.XXXXXXXX") || return 1
+    printf '%s\n' "$body" > "$tmp"
+    chmod 644 "$tmp"
+    mv -T "$tmp" "$path"
 }
 
 # write_spa_snippet <app-name> <domain>
@@ -58,7 +84,7 @@ write_spa_snippet() {
     local name=$1 domain=$2 path
     path="$(spa_snippet_path "$name")"
     mkdir -p "$SANDBOX_CADDY_SPA_DIR"
-    render_spa_snippet "$name" "$domain" > "$path"
+    atomic_caddy_file "$path" "$(render_spa_snippet "$name" "$domain")"
 }
 
 # remove_spa_snippet <app-name> — возвращает 0, если файл был удалён.
@@ -67,6 +93,14 @@ remove_spa_snippet() {
     path="$(spa_snippet_path "$1")"
     [[ -f $path ]] || return 1
     rm -f "$path"
+}
+
+caddy_config_path() {
+    if [[ -d $SANDBOX_CADDY_DIR/config ]]; then
+        printf '%s/config/Caddyfile\n' "$SANDBOX_CADDY_DIR"
+    else
+        printf '%s/Caddyfile\n' "$SANDBOX_CADDY_DIR"
+    fi
 }
 
 # caddy_available — запущен ли контейнер Caddy.
@@ -86,24 +120,29 @@ caddy_available() {
 caddy_validate() {
     ( cd "$SANDBOX_CADDY_DIR" && \
       docker compose exec -T caddy \
-        caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile )
+        caddy validate --adapter caddyfile --config - < "$(caddy_config_path)" )
 }
 
 caddy_reload() {
     # Базовый Caddyfile не содержит маршрутов из Docker labels. Обычный
     # caddy reload затёр бы их. Перезапуск поручает генерацию самому плагину.
     # Цена этого простого механизма — короткий перерыв при смене правил.
-    ( cd "$SANDBOX_CADDY_DIR" && \
-      docker compose restart caddy )
+    if [[ -d $SANDBOX_CADDY_DIR/config ]]; then
+        ( cd "$SANDBOX_CADDY_DIR" && docker compose restart controller )
+    else
+        ( cd "$SANDBOX_CADDY_DIR" && docker compose up -d --force-recreate caddy )
+    fi
 }
 
 # sync_spa_config <app-name> <true|false> <domain>
 # Приводит правила проекта в соответствие с конфигом и перезагружает Caddy.
 # Невалидный результат откатывается, чтобы сломанный сниппет не остался
 # лежать и не уронил следующий reload — в том числе чужого проекта.
-sync_spa_config() {
+sync_spa_config() (
+    lock_caddy || return 1
     local name=$1 spa=$2 domain=$3 path backup="" changed=false
     path="$(spa_snippet_path "$name")"
+    assert_plain_path "$path" || return 1
 
     if [[ $spa == true ]]; then
         [[ -f $path ]] && backup=$(cat "$path")
@@ -111,7 +150,7 @@ sync_spa_config() {
         rendered=$(render_spa_snippet "$name" "$domain")
         if [[ "$backup" != "$rendered" ]]; then
             mkdir -p "$SANDBOX_CADDY_SPA_DIR"
-            printf '%s\n' "$rendered" > "$path"
+            atomic_caddy_file "$path" "$rendered" || return 1
             changed=true
         fi
     else
@@ -135,7 +174,7 @@ sync_spa_config() {
     if ! caddy_validate >/dev/null 2>&1; then
         warn "[$name] конфигурация Caddy не прошла валидацию — откатываю правила"
         if [[ -n $backup ]]; then
-            printf '%s\n' "$backup" > "$path"
+            atomic_caddy_file "$path" "$backup" || return 1
         else
             rm -f "$path"
         fi
@@ -146,12 +185,13 @@ sync_spa_config() {
     caddy_reload >/dev/null || {
         warn "[$name] caddy reload не удался"
         if [[ -n $backup ]]; then
-            printf '%s\n' "$backup" > "$path"
+            atomic_caddy_file "$path" "$backup" || return 1
         else
             rm -f "$path"
         fi
+        caddy_reload >/dev/null 2>&1 || warn "[$name] restored config could not be applied"
         return 1
     }
 
     log "[$name] правила раздачи обновлены (spa=$spa)"
-}
+)
