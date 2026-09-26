@@ -282,7 +282,7 @@ echo "== docker-проект без root-политики не запускае�
 printf 'type=docker\n' > "$WORK/.sandbox.conf"
 printf 'services:\n  app:\n    image: busybox\n    privileged: true\n' > "$WORK/compose.yml"
 commit "DOCKER"
-out=$(SANDBOX_POLICY_ROOT="$SB/no-policy" git -C "$WORK" push prod main 2>&1 || true)
+out=$(SANDBOX_POLICY_ROOT="$SB/no-policy" SANDBOX_POLICY_DEFAULTS="$SB/no-defaults" git -C "$WORK" push prod main 2>&1 || true)
 assert_eq "хук сообщает об отказе политики" "да" \
     "$(grep -q 'не допущен политикой' <<< "$out" && echo да || echo нет)"
 assert_missing "рабочий каталог compose не создан" "$SANDBOX_APPS_ROOT/$NAME/compose.yml"

@@ -20,6 +20,13 @@ if [[ -n ${SANDBOX_CADDY_ARCHIVE:-} ]]; then
 elif [[ ! ${SANDBOX_CADDY_IMAGE:-} =~ ^[^[:space:]@]+@sha256:[a-f0-9]{64}$ ]]; then
     die 'Нужен SANDBOX_CADDY_ARCHIVE + SANDBOX_CADDY_ARCHIVE_SHA256 или SANDBOX_CADDY_IMAGE=<образ>@sha256:<digest> (см. docs/ru/install.md)'
 fi
+# Необязательно: архив worker для Node-проектов. Его ID попадёт в политику
+# по умолчанию, и Node-проекты деплоятся без отдельных root-шагов.
+if [[ -n ${SANDBOX_WORKER_ARCHIVE:-} ]]; then
+    [[ -f $SANDBOX_WORKER_ARCHIVE && ${SANDBOX_WORKER_ARCHIVE_SHA256:-} =~ ^[a-f0-9]{64}$ ]] \
+        || die 'SANDBOX_WORKER_ARCHIVE должен быть файлом, SANDBOX_WORKER_ARCHIVE_SHA256 — его SHA-256'
+    SANDBOX_WORKER_ARCHIVE=$(readlink -f -- "$SANDBOX_WORKER_ARCHIVE")
+fi
 echo "==> Sandbox infrastructure bootstrap"
 
 # --- 0. Deploy-пользователь ---
@@ -59,6 +66,8 @@ chown -R deploy:deploy /srv/git /srv/apps /srv/sites /srv/state
 apt-get install -y util-linux
 
 install -d -m 755 -o root -g root /etc/sandbox /etc/sandbox/projects
+# Общие политики для Node- и Docker-проектов без собственной политики.
+install_default_policies "$SCRIPT_DIR/examples"
 
 # --- 2a. userns-remap ---
 # root в контейнерах проектов становится непривилегированным UID хоста.
@@ -153,6 +162,11 @@ else
     docker pull "$SANDBOX_CADDY_IMAGE"
     set_env_value /srv/caddy/.env SANDBOX_CADDY_IMAGE "$SANDBOX_CADDY_IMAGE" \
         || { echo "не удалось записать SANDBOX_CADDY_IMAGE в /srv/caddy/.env" >&2; exit 1; }
+fi
+
+if [[ -n ${SANDBOX_WORKER_ARCHIVE:-} ]]; then
+    echo "==> Загружаю проверенный архив образа worker"
+    bash "$SCRIPT_DIR/deploy/load-image.sh" "$SANDBOX_WORKER_ARCHIVE" "$SANDBOX_WORKER_ARCHIVE_SHA256" --worker >/dev/null
 fi
 
 echo "==> Запускаю Caddy"

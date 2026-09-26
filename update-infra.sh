@@ -86,6 +86,7 @@ if [[ "$DO_SCRIPTS" == true ]]; then
             chown -R root:root "$SANDBOX_DEPLOY_DIR"
         fi
         install_host_units "$SRC_DIR/deploy" || warn "systemd-юниты (обслуживание, firewall) не установлены"
+        install_default_policies "$SRC_DIR/examples" || warn "политики по умолчанию не установлены"
     fi
     echo "   готово"
 fi

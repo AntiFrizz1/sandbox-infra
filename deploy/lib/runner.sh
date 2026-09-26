@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Policies are installed by root, outside repositories and deploy-owned state.
+# Policies are installed by root, outside repositories and deploy-owned state:
+# a per-project file overrides the shared default for its kind.
 SANDBOX_POLICY_ROOT="${SANDBOX_POLICY_ROOT:-/etc/sandbox/projects}"
+SANDBOX_POLICY_DEFAULTS="${SANDBOX_POLICY_DEFAULTS:-/etc/sandbox/defaults}"
 # Networks the fetch phase may join must carry this label (see bootstrap.sh).
 SANDBOX_FETCH_NETWORK_LABEL="${SANDBOX_FETCH_NETWORK_LABEL:-sandbox.role=build}"
 
@@ -28,9 +30,27 @@ validate_fetch_network() {
     [[ $(docker network inspect --format "{{index .Labels \"$key\"}}" "$network" 2>/dev/null) == "$value" ]]
 }
 
+# resolve_policy <name> <worker|compose> — prints the policy file to use.
+# The project's own file wins; without one, the shared default applies. A
+# project file that exists but is not trusted is an error, never a silent
+# fallback: a permissions mistake must not quietly change a project's limits.
+resolve_policy() {
+    local name=$1 kind=$2 own="$SANDBOX_POLICY_ROOT/$1.conf" default="$SANDBOX_POLICY_DEFAULTS/$2.conf"
+    if [[ -e $own || -L $own ]]; then
+        trusted_policy_path "$own" || { warn "[$name] $own must be a root-owned file not writable by group/others"; return 1; }
+        printf '%s\n' "$own"
+    elif [[ -e $default || -L $default ]]; then
+        trusted_policy_path "$default" || { warn "[$name] $default must be a root-owned file not writable by group/others"; return 1; }
+        printf '%s\n' "$default"
+    else
+        warn "[$name] root-owned $kind policy required: $default or $own"
+        return 1
+    fi
+}
+
 load_execution_policy() {
-    local name=$1 path="$SANDBOX_POLICY_ROOT/$1.conf"
-    trusted_policy_path "$path" || { warn "[$name] root-owned execution policy required"; return 1; }
+    local name=$1 path
+    path=$(resolve_policy "$name" worker) || return 1
     RUN_PROFILE=$(read_conf_value "$path" profile || true)
     RUN_IMAGE=$(read_conf_value "$path" image || true)
     RUN_TIMEOUT=$(read_conf_value "$path" timeout_seconds || echo 300)
@@ -40,8 +60,8 @@ load_execution_policy() {
     RUN_OUTPUT_MB=$(read_conf_value "$path" output_mb || echo 2048)
     RUN_FETCH_NETWORK=$(read_conf_value "$path" fetch_network || echo none)
     RUN_NPM_REGISTRY=$(read_conf_value "$path" npm_registry || echo https://registry.npmjs.org/)
-    [[ $RUN_PROFILE == worker ]] || { warn "[$name] execution policy profile must be worker"; return 1; }
-    is_pinned_image "$RUN_IMAGE" || { warn "[$name] image must be repo@sha256:… or a local sha256:… ID"; return 1; }
+    [[ $RUN_PROFILE == worker ]] || { warn "[$name] execution policy profile must be worker ($path)"; return 1; }
+    is_pinned_image "$RUN_IMAGE" || { warn "[$name] image in $path must be repo@sha256:… or a local sha256:… ID (load-image.sh … --worker)"; return 1; }
     local n
     for n in "$RUN_TIMEOUT" "$RUN_MEMORY" "$RUN_PIDS" "$RUN_CPUS" "$RUN_OUTPUT_MB"; do
         [[ $n =~ ^[1-9][0-9]{0,5}$ ]] || return 1

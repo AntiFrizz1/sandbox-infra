@@ -11,11 +11,16 @@ Compose is executed by the host's Docker daemon, so a project is admitted
 only with a root policy and only after its compose file passes an allowlist
 check.
 
-## 1. Allow the project on the server (once, as root)
+## 1. Policy on the server
+
+Usually there is nothing to do: the shared policy
+`/etc/sandbox/defaults/compose.conf` applies; bootstrap and `update-infra.sh`
+install it. Different limits for one project go into a separate file, which
+wins:
 
 ```bash
 sudo install -m 644 -o root -g root \
-    /root/sandbox-infra/examples/compose-policy.conf /etc/sandbox/projects/my-api.conf
+    /etc/sandbox/defaults/compose.conf /etc/sandbox/projects/my-api.conf
 ```
 
 | Key | Default | Meaning |
@@ -27,9 +32,8 @@ sudo install -m 644 -o root -g root \
 | `cpus` | 1 | CPU of each service |
 
 The timeout stops the CLI but does not interrupt a build already handed to
-the daemon. Without a policy the hook answers "Docker-проект не допущен
-политикой" (Docker project not admitted by policy) and runs nothing — even
-if a commit changed `type`.
+the daemon. Without any policy the hook answers "Docker-проект не допущен
+политикой" (Docker project not admitted by policy) and runs nothing.
 
 ## 2. Repository
 
@@ -203,7 +207,7 @@ only switches static releases). Application logs are on the server:
 
 | Message | What to do |
 |---|---|
-| "Docker-проект не допущен политикой" (not admitted by policy) | no `/etc/sandbox/projects/<app>.conf` with `profile=compose` |
+| "Docker-проект не допущен политикой" (not admitted by policy) | no `/etc/sandbox/defaults/compose.conf` — `sudo ./update-infra.sh` |
 | `compose policy: …` | fix the named key; see the table above |
 | "docker compose config failed" | compose file syntax or an unknown variable |
 | "health_url должен вести на …" (health_url must point to …) | the check address may only go through Caddy on the project's domain |

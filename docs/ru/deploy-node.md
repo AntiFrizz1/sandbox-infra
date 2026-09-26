@@ -10,37 +10,38 @@
 после сборки процесс не запускается. Для него —
 [Docker-проект](deploy-docker.md).
 
-## 1. Разрешить проект на сервере (один раз, root)
+## 1. Политика на сервере
 
 Код сборки — чужой по определению (зависимости из npm), поэтому что и как
-можно запускать, решает root-политика, а не репозиторий.
+запускать, решает root-политика, а не репозиторий. Обычно ничего делать не
+нужно: действует общая политика `/etc/sandbox/defaults/worker.conf`, которую
+ставят bootstrap и `update-infra.sh`, а ID образа worker в неё записывает
+`load-image.sh … --worker` ([установка](install.md#3-донастроить-вручную)).
+
+Свои лимиты для одного проекта — отдельный файл, он главнее общего:
 
 ```bash
 sudo install -m 644 -o root -g root \
-    /root/sandbox-infra/examples/worker-policy.conf /etc/sandbox/projects/my-app.conf
+    /etc/sandbox/defaults/worker.conf /etc/sandbox/projects/my-app.conf
 sudo nano /etc/sandbox/projects/my-app.conf
 ```
-
-Обязательно заполни `image=` — ID образа worker, который напечатал
-`load-image.sh` при [установке](install.md#3-донастроить-вручную), например
-`image=sha256:1b56…`. Теги не принимаются.
 
 | Ключ | По умолчанию | Смысл |
 |---|---|---|
 | `profile` | — | всегда `worker` |
-| `image` | — | `sha256:…` ID или `<registry>/<image>@sha256:…` |
+| `image` | — | `sha256:…` ID или `<registry>/<image>@sha256:…`; теги не принимаются |
 | `timeout_seconds` | 300 | предел каждой из двух фаз |
 | `memory_mb` | 512 | память контейнера (без swap) |
 | `pids` | 128 | предел процессов |
 | `cpus` | 1 | CPU |
 | `output_mb` | 2048 | предел дерева сборки (исходники, `node_modules`, результат) |
-| `fetch_network` | `none` в коде, `sandbox_build` в примере | сеть для скачивания зависимостей; только `none` или сеть с меткой `sandbox.role=build` |
+| `fetch_network` | `sandbox_build` | сеть для скачивания зависимостей; только `none` или сеть с меткой `sandbox.role=build` |
 | `npm_registry` | `https://registry.npmjs.org/` | registry для npm; перекрывает `.npmrc` проекта |
 
 Файл и все каталоги над ним должны принадлежать root и не быть доступны на
-запись группе и остальным — иначе политика отвергается. Без политики сборка
-не запускается («root-owned execution policy required»), а на хосте она не
-запускается никогда.
+запись группе и остальным. Файл проекта с неверными правами — ошибка, а не
+повод тихо взять общую политику. Без политики сборка не запускается, а на
+хосте она не запускается никогда.
 
 ## 2. Репозиторий
 
@@ -128,8 +129,9 @@ SSH-ключам и Docker API, с лимитами из политики. Ес�
 
 | Сообщение | Что делать |
 |---|---|
-| «root-owned execution policy required» | нет политики или у неё неверные права/владелец |
-| «image must be repo@sha256:… or a local sha256:… ID» | в политике тег или пусто в `image=` |
+| «root-owned execution policy required» | нет ни общей, ни своей политики — `sudo ./update-infra.sh` |
+| «… must be a root-owned file …» | у файла политики неверный владелец или права |
+| «image in … must be …» | образ worker не загружен (`load-image.sh … --worker`) или в `image=` тег |
 | «fetch_network must be none or a network labelled …» | сеть не существует или без метки `sandbox.role=build` |
 | «worker fetch failed» | смотри лог: чаще всего lock-файл не совпадает с `package.json` или нет сети (`fetch_network=none`) |
 | «worker build failed» | ошибка сборки проекта или пакет пытался скачать что-то без сети |

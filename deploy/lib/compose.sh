@@ -7,8 +7,8 @@ COMPOSE_WRAP=()
 SANDBOX_LINT_COMPOSE="${SANDBOX_LINT_COMPOSE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lint-compose.py}"
 
 load_compose_policy() {
-    local name=$1 path="$SANDBOX_POLICY_ROOT/$1.conf" n
-    trusted_policy_path "$path" || { warn "[$name] root-owned execution policy required"; return 1; }
+    local name=$1 path n
+    path=$(resolve_policy "$name" compose) || return 1
     [[ $(read_conf_value "$path" profile || true) == compose ]] \
         || { warn "[$name] Docker projects need profile=compose in $path"; return 1; }
     COMPOSE_TIMEOUT=$(read_conf_value "$path" timeout_seconds || echo 900)

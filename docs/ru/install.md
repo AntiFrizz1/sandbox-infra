@@ -98,14 +98,25 @@ scripts/export-image.sh sandbox-worker:candidate worker.tar --artifact worker
 
 ## 2. Установить на VPS
 
+Со своей машины перенеси только архивы, а репозиторий склонируй на сервере —
+так туда не уедут служебные папки вроде `.git` с локальными ветками,
+`.claude/` или `.remember/`:
+
 ```bash
-scp -r sandbox-infra caddy.tar worker.tar root@<IP>:/root/
+scp caddy.tar worker.tar root@<IP>:/root/
 ssh root@<IP>
+git clone https://github.com/AntiFrizz1/sandbox-infra.git /root/sandbox-infra
 cd /root/sandbox-infra
 SANDBOX_CADDY_ARCHIVE=/root/caddy.tar \
 SANDBOX_CADDY_ARCHIVE_SHA256=<sha256 caddy.tar> \
+SANDBOX_WORKER_ARCHIVE=/root/worker.tar \
+SANDBOX_WORKER_ARCHIVE_SHA256=<sha256 worker.tar> \
     ./bootstrap.sh
 ```
+
+Суммы — строки `sha256:` из вывода `export-image.sh` (или `sha256sum *.tar`
+на своей машине). Архив worker можно не передавать и загрузить позже
+(шаг 3.6).
 
 Если образ Caddy лежит в registry, вместо двух переменных архива подойдёт
 `SANDBOX_CADDY_IMAGE='<registry>/<image>@sha256:<digest>'`.
@@ -114,8 +125,9 @@ SANDBOX_CADDY_ARCHIVE_SHA256=<sha256 caddy.tar> \
 
 1. Создаёт пользователя `deploy` — от него идут `git push` и деплой.
 2. Ставит Docker, Compose, rsync, git, python3 с PyYAML, curl, util-linux.
-3. Создаёт `/srv/{git,apps,sites,state,deploy,caddy}` и
-   `/etc/sandbox/projects` (root-политики проектов).
+3. Создаёт `/srv/{git,apps,sites,state,deploy,caddy}` и root-политики
+   по умолчанию `/etc/sandbox/defaults/worker.conf` и `compose.conf` — по ним
+   собираются Node-проекты и запускаются Docker-проекты.
 4. На чистом Docker включает **userns-remap**: root в контейнерах проектов
    становится непривилегированным UID хоста. Если в Docker уже есть
    контейнеры или тома, шаг пропускается — перенос делается по runbook.
@@ -127,7 +139,8 @@ SANDBOX_CADDY_ARCHIVE_SHA256=<sha256 caddy.tar> \
 7. Создаёт `/srv/sandbox.conf`, `/srv/caddy/config/Caddyfile`,
    `/srv/caddy/docker-compose.yml`, `/srv/caddy/.env` (`root:deploy 0640`).
 8. Проверяет SHA-256 архива Caddy, загружает образ и записывает его ID в
-   `/srv/caddy/.env`; запускает Caddy.
+   `/srv/caddy/.env`. Если передан архив worker — так же проверяет, загружает
+   и записывает его ID в политику по умолчанию. Запускает Caddy.
 9. Включает автоматические обновления безопасности и — если у root уже есть
    ключ в `/root/.ssh/authorized_keys` — отключает вход по паролю.
 
@@ -164,12 +177,12 @@ SANDBOX_CADDY_ARCHIVE_SHA256=<sha256 caddy.tar> \
    (от `deploy` идут push и клиент). Если bootstrap написал «у root нет
    ключа», добавь ключ и в `/root/.ssh/authorized_keys` и запусти
    `/srv/deploy/harden-host.sh` — он отключит вход по паролю.
-6. **Worker.** Загрузи образ worker:
+6. **Worker** — только если не передал его в bootstrap:
    ```bash
-   /srv/deploy/load-image.sh /root/worker.tar <sha256 worker.tar>
+   /srv/deploy/load-image.sh /root/worker.tar <sha256 worker.tar> --worker
    ```
-   Команда печатает ID вида `sha256:…` — он нужен в политиках Node-проектов
-   ([deploy-node.md](deploy-node.md)).
+   `--worker` записывает ID образа в `/etc/sandbox/defaults/worker.conf`.
+   После этого Node- и Docker-проекты деплоятся без отдельных root-шагов.
 
 ## 4. Проверить
 
@@ -222,7 +235,7 @@ systemd-юниты, переносит домен и email из действую
 ```bash
 sudo /srv/deploy/load-image.sh caddy.tar <sha256> --caddy   # пишет ID в /srv/caddy/.env
 cd /srv/caddy && docker compose up -d
-sudo /srv/deploy/load-image.sh worker.tar <sha256>          # ID — в политики Node-проектов
+sudo /srv/deploy/load-image.sh worker.tar <sha256> --worker # ID — в политику по умолчанию
 ```
 
 Пересматривать образы стоит раз в месяц: исключения в `exceptions.json`
@@ -251,5 +264,6 @@ sudo /srv/deploy/load-image.sh worker.tar <sha256>          # ID — в поли
 | `https://sandbox.<домен>` не открывается | отдельная A-запись `sandbox`, порты 80/443 в firewall провайдера |
 | push проходит, но «ДЕПЛОЙ ПРОВАЛЕН» | `sandbox-deploy logs <app>`: полный лог сборки этого коммита |
 | «деплой отложен: на диске мало места» | `df -h`, `sudo /srv/deploy/maintenance.sh` |
-| Node: «root-owned execution policy required» | нет `/etc/sandbox/projects/<app>.conf` — см. [deploy-node.md](deploy-node.md) |
-| Docker: «не допущен политикой» | нет политики `profile=compose` — см. [deploy-docker.md](deploy-docker.md) |
+| Node: «root-owned execution policy required» | нет `/etc/sandbox/defaults/worker.conf` — `sudo ./update-infra.sh` |
+| Node: «image in … must be …» | не загружен образ worker — `load-image.sh … --worker` |
+| Docker: «не допущен политикой» | нет `/etc/sandbox/defaults/compose.conf` — `sudo ./update-infra.sh` |

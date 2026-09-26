@@ -126,9 +126,12 @@ image digest. Остановить новые deploy через SSH/post-receive
    предоставлять проектам. DNS token получает server, которому нужен challenge;
    RCE этого процесса всё ещё раскрывает token. Scope Timeweb требует отдельной
    проверки аккаунта/зоны. DNS smoke проводить на ACME staging/test domain.
-4. Worker policy: `/etc/sandbox/projects/<name>.conf`, root:root 0644; все
-   родительские каталоги root-owned и без group/world-write. Образ заранее
-   загрузить по утверждённому digest. Зависимости скачивает отдельный
+4. Политики: общие `/etc/sandbox/defaults/worker.conf` и `compose.conf`
+   (ставят bootstrap и `update-infra.sh`, существующие не перезаписываются);
+   `/etc/sandbox/projects/<name>.conf` при наличии главнее общей. Всё
+   root:root 0644, родительские каталоги root-owned и без group/world-write;
+   файл проекта с неверными правами — ошибка, а не переход на общую. Образ
+   worker загрузить `load-image.sh … --worker` (пишет ID в общую политику). Зависимости скачивает отдельный
    контейнер fetch в сети `fetch_network` (bootstrap создаёт `sandbox_build`
    с меткой `sandbox.role=build`; сеть без метки отвергается) командой
    `npm ci --ignore-scripts` — код проекта и зависимостей там не выполняется.

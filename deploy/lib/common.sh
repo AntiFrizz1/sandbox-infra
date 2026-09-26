@@ -263,3 +263,22 @@ install_host_units() {
 is_pinned_image() {
     [[ ${1-} =~ ^[^[:space:]@]+@sha256:[a-f0-9]{64}$ || ${1-} =~ ^sha256:[a-f0-9]{64}$ ]]
 }
+
+# install_default_policies <examples-dir>
+# Shared root policies used by every Node (worker.conf) and Docker
+# (compose.conf) project without its own /etc/sandbox/projects/<name>.conf.
+# Existing files are never overwritten: they hold the admin's limits and the
+# worker image ID written by load-image.sh --worker.
+install_default_policies() {
+    local dir=${SANDBOX_POLICY_DEFAULTS:-/etc/sandbox/defaults} kind
+    if (( EUID != 0 )); then
+        warn "политики по умолчанию ставит root — пропускаю"
+        return 0
+    fi
+    install -d -m 755 -o root -g root "$dir" || return 1
+    for kind in worker compose; do
+        [[ -e $dir/$kind.conf || -L $dir/$kind.conf ]] && continue
+        install -m 644 -o root -g root "$1/$kind-policy.conf" "$dir/$kind.conf" || return 1
+        log "политика по умолчанию: $dir/$kind.conf"
+    done
+}

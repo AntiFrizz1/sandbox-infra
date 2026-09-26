@@ -10,37 +10,38 @@ Server-side Node (Express, Next.js in server mode, an API) does not work
 this way: nothing keeps running after the build. Use a
 [Docker project](deploy-docker.md) for that.
 
-## 1. Allow the project on the server (once, as root)
+## 1. Policy on the server
 
-Build code is untrusted by definition (dependencies from npm), so what may
-run and how is decided by a root policy, not by the repository.
+Build code is untrusted by definition (dependencies from npm), so what runs
+and how is decided by a root policy, not by the repository. Usually there is
+nothing to do: the shared policy `/etc/sandbox/defaults/worker.conf` applies.
+bootstrap and `update-infra.sh` install it, and `load-image.sh … --worker`
+writes the worker image ID into it ([installation](install.md#3-finish-by-hand)).
+
+Different limits for one project go into a separate file, which wins:
 
 ```bash
 sudo install -m 644 -o root -g root \
-    /root/sandbox-infra/examples/worker-policy.conf /etc/sandbox/projects/my-app.conf
+    /etc/sandbox/defaults/worker.conf /etc/sandbox/projects/my-app.conf
 sudo nano /etc/sandbox/projects/my-app.conf
 ```
-
-You must fill in `image=` — the worker image ID printed by `load-image.sh`
-during [installation](install.md#3-finish-by-hand), for example
-`image=sha256:1b56…`. Tags are refused.
 
 | Key | Default | Meaning |
 |---|---|---|
 | `profile` | — | always `worker` |
-| `image` | — | a `sha256:…` ID or `<registry>/<image>@sha256:…` |
+| `image` | — | a `sha256:…` ID or `<registry>/<image>@sha256:…`; tags are refused |
 | `timeout_seconds` | 300 | limit for each of the two phases |
 | `memory_mb` | 512 | container memory (no swap) |
 | `pids` | 128 | process limit |
 | `cpus` | 1 | CPU |
 | `output_mb` | 2048 | limit for the build tree (sources, `node_modules`, output) |
-| `fetch_network` | `none` in code, `sandbox_build` in the example | network for downloading dependencies; only `none` or a network labelled `sandbox.role=build` |
+| `fetch_network` | `sandbox_build` | network for downloading dependencies; only `none` or a network labelled `sandbox.role=build` |
 | `npm_registry` | `https://registry.npmjs.org/` | npm registry; overrides the project's `.npmrc` |
 
 The file and every directory above it must be owned by root and not
-writable by group or others — otherwise the policy is refused. Without a
-policy the build does not run ("root-owned execution policy required"), and
-it never runs on the host.
+writable by group or others. A project file with wrong permissions is an
+error, not a reason to silently use the shared policy. Without a policy the
+build does not run, and it never runs on the host.
 
 ## 2. Repository
 
@@ -128,8 +129,9 @@ commit: `sandbox-deploy logs my-app <sha>` (up to 1 MiB).
 
 | Message | What to do |
 |---|---|
-| "root-owned execution policy required" | no policy, or wrong owner/permissions |
-| "image must be repo@sha256:… or a local sha256:… ID" | the policy has a tag or an empty `image=` |
+| "root-owned execution policy required" | neither a shared nor an own policy — `sudo ./update-infra.sh` |
+| "… must be a root-owned file …" | wrong owner or permissions on a policy file |
+| "image in … must be …" | the worker image is not loaded (`load-image.sh … --worker`) or `image=` holds a tag |
 | "fetch_network must be none or a network labelled …" | the network does not exist or lacks the `sandbox.role=build` label |
 | "worker fetch failed" | see the log: usually the lock file does not match `package.json`, or there is no network (`fetch_network=none`) |
 | "worker build failed" | the project's build failed, or a package tried to download something without network |

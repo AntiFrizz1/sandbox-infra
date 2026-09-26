@@ -47,8 +47,9 @@ scripts/export-image.sh sandbox-worker:candidate worker.tar --artifact worker
 On the VPS (Ubuntu 22.04/24.04, as root):
 
 ```bash
-SANDBOX_CADDY_ARCHIVE=/root/caddy.tar SANDBOX_CADDY_ARCHIVE_SHA256=<sha256> ./bootstrap.sh
-/srv/deploy/load-image.sh /root/worker.tar <sha256>
+git clone https://github.com/AntiFrizz1/sandbox-infra.git /root/sandbox-infra && cd /root/sandbox-infra
+SANDBOX_CADDY_ARCHIVE=/root/caddy.tar SANDBOX_CADDY_ARCHIVE_SHA256=<sha256> \
+SANDBOX_WORKER_ARCHIVE=/root/worker.tar SANDBOX_WORKER_ARCHIVE_SHA256=<sha256> ./bootstrap.sh
 ```
 
 Then the domain and email in the Caddyfile, the Timeweb token, DNS records
@@ -64,8 +65,8 @@ sandbox-deploy init myapp && sandbox-deploy push
 | Type | When | Needed on the server | Guide |
 |---|---|---|---|
 | `static` | ready HTML/CSS/JS | nothing | [deploy-static.md](docs/en/deploy-static.md) |
-| `node` | a frontend with a build step | root policy `profile=worker` | [deploy-node.md](docs/en/deploy-node.md) |
-| `docker` | backend, database, bot, SSR | root policy `profile=compose` | [deploy-docker.md](docs/en/deploy-docker.md) |
+| `node` | a frontend with a build step | nothing (shared worker policy) | [deploy-node.md](docs/en/deploy-node.md) |
+| `docker` | backend, database, bot, SSR | nothing (shared compose policy) | [deploy-docker.md](docs/en/deploy-docker.md) |
 
 The type and publish directory are set by `.sandbox.conf` at the repository
 root (examples in `examples/`); otherwise they are detected from files: a

@@ -48,8 +48,9 @@ scripts/export-image.sh sandbox-worker:candidate worker.tar --artifact worker
 На VPS (Ubuntu 22.04/24.04, от root):
 
 ```bash
-SANDBOX_CADDY_ARCHIVE=/root/caddy.tar SANDBOX_CADDY_ARCHIVE_SHA256=<sha256> ./bootstrap.sh
-/srv/deploy/load-image.sh /root/worker.tar <sha256>
+git clone https://github.com/AntiFrizz1/sandbox-infra.git /root/sandbox-infra && cd /root/sandbox-infra
+SANDBOX_CADDY_ARCHIVE=/root/caddy.tar SANDBOX_CADDY_ARCHIVE_SHA256=<sha256> \
+SANDBOX_WORKER_ARCHIVE=/root/worker.tar SANDBOX_WORKER_ARCHIVE_SHA256=<sha256> ./bootstrap.sh
 ```
 
 Затем домен и email в Caddyfile, токен Timeweb, DNS-записи и SSH-ключи —
@@ -64,8 +65,8 @@ sandbox-deploy init myapp && sandbox-deploy push
 | Тип | Когда | Что нужно на сервере | Руководство |
 |---|---|---|---|
 | `static` | готовые HTML/CSS/JS | ничего | [deploy-static.md](docs/ru/deploy-static.md) |
-| `node` | фронтенд со сборкой | root-политика `profile=worker` | [deploy-node.md](docs/ru/deploy-node.md) |
-| `docker` | backend, база, бот, SSR | root-политика `profile=compose` | [deploy-docker.md](docs/ru/deploy-docker.md) |
+| `node` | фронтенд со сборкой | ничего (общая политика worker) | [deploy-node.md](docs/ru/deploy-node.md) |
+| `docker` | backend, база, бот, SSR | ничего (общая политика compose) | [deploy-docker.md](docs/ru/deploy-docker.md) |
 
 Тип и каталог публикации задаются `.sandbox.conf` в корне репозитория
 (примеры — в `examples/`), иначе определяются по файлам: compose-файл →

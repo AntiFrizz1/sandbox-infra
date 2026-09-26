@@ -10,11 +10,16 @@
 Compose исполняет Docker-демон хоста, поэтому проект допускается только по
 root-политике и только после проверки compose-файла по белому списку.
 
-## 1. Разрешить проект на сервере (один раз, root)
+## 1. Политика на сервере
+
+Обычно ничего делать не нужно: действует общая политика
+`/etc/sandbox/defaults/compose.conf`, которую ставят bootstrap и
+`update-infra.sh`. Свои лимиты для одного проекта — отдельный файл, он главнее
+общего:
 
 ```bash
 sudo install -m 644 -o root -g root \
-    /root/sandbox-infra/examples/compose-policy.conf /etc/sandbox/projects/my-api.conf
+    /etc/sandbox/defaults/compose.conf /etc/sandbox/projects/my-api.conf
 ```
 
 | Ключ | По умолчанию | Смысл |
@@ -26,8 +31,8 @@ sudo install -m 644 -o root -g root \
 | `cpus` | 1 | CPU каждого сервиса |
 
 Таймаут останавливает CLI, но сборку, уже переданную демону, не прерывает.
-Без политики хук отвечает «Docker-проект не допущен политикой» и ничего не
-запускает — даже если в коммите сменили `type`.
+Без какой-либо политики хук отвечает «Docker-проект не допущен политикой» и
+ничего не запускает.
 
 ## 2. Репозиторий
 
@@ -200,7 +205,7 @@ sandbox-deploy remove my-api     # down -v --rmi local: контейнеры, т
 
 | Сообщение | Что делать |
 |---|---|
-| «Docker-проект не допущен политикой» | нет `/etc/sandbox/projects/<app>.conf` с `profile=compose` |
+| «Docker-проект не допущен политикой» | нет `/etc/sandbox/defaults/compose.conf` — `sudo ./update-infra.sh` |
 | `compose policy: …` | исправь названный ключ; таблица выше |
 | «docker compose config failed» | синтаксис compose-файла или неизвестная переменная |
 | «health_url должен вести на …» | адрес проверки — только через Caddy на домене проекта |

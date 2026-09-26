@@ -102,14 +102,25 @@ records the archive in the manifest. Without a scan, run it without
 
 ## 2. Install on the VPS
 
+Copy only the archives from your machine and clone the repository on the
+server, so that service directories such as `.git` with local branches,
+`.claude/` or `.remember/` stay behind:
+
 ```bash
-scp -r sandbox-infra caddy.tar worker.tar root@<IP>:/root/
+scp caddy.tar worker.tar root@<IP>:/root/
 ssh root@<IP>
+git clone https://github.com/AntiFrizz1/sandbox-infra.git /root/sandbox-infra
 cd /root/sandbox-infra
 SANDBOX_CADDY_ARCHIVE=/root/caddy.tar \
 SANDBOX_CADDY_ARCHIVE_SHA256=<sha256 of caddy.tar> \
+SANDBOX_WORKER_ARCHIVE=/root/worker.tar \
+SANDBOX_WORKER_ARCHIVE_SHA256=<sha256 of worker.tar> \
     ./bootstrap.sh
 ```
+
+The sums are the `sha256:` lines printed by `export-image.sh` (or
+`sha256sum *.tar` on your machine). The worker archive is optional here and
+can be loaded later (step 3.6).
 
 If the Caddy image is in a registry, use
 `SANDBOX_CADDY_IMAGE='<registry>/<image>@sha256:<digest>'` instead of the two
@@ -119,8 +130,9 @@ What bootstrap does, in order:
 
 1. Creates the `deploy` user — `git push` and deploys run as it.
 2. Installs Docker, Compose, rsync, git, python3 with PyYAML, curl, util-linux.
-3. Creates `/srv/{git,apps,sites,state,deploy,caddy}` and
-   `/etc/sandbox/projects` (root policies for projects).
+3. Creates `/srv/{git,apps,sites,state,deploy,caddy}` and the default root
+   policies `/etc/sandbox/defaults/worker.conf` and `compose.conf`, which
+   Node builds and Docker projects run under.
 4. On a Docker with no containers or volumes, enables **userns-remap**: root
    inside project containers becomes an unprivileged host UID. If Docker
    already has containers or volumes, the step is skipped — follow the
@@ -133,8 +145,9 @@ What bootstrap does, in order:
    networks).
 7. Creates `/srv/sandbox.conf`, `/srv/caddy/config/Caddyfile`,
    `/srv/caddy/docker-compose.yml` and `/srv/caddy/.env` (`root:deploy 0640`).
-8. Verifies the SHA-256 of the Caddy archive, loads the image, writes its ID
-   into `/srv/caddy/.env` and starts Caddy.
+8. Verifies the SHA-256 of the Caddy archive, loads the image and writes
+   its ID into `/srv/caddy/.env`. With a worker archive it does the same and
+   writes the worker ID into the default policy. Starts Caddy.
 9. Turns on unattended security upgrades and — if root already has a key in
    `/root/.ssh/authorized_keys` — disables password login.
 
@@ -172,12 +185,12 @@ Optional variables:
    (pushes and the client use `deploy`). If bootstrap said root has no key,
    add one to `/root/.ssh/authorized_keys` as well and run
    `/srv/deploy/harden-host.sh` — it will turn off password login.
-6. **Worker.** Load the worker image:
+6. **Worker** — only if you did not pass it to bootstrap:
    ```bash
-   /srv/deploy/load-image.sh /root/worker.tar <sha256 of worker.tar>
+   /srv/deploy/load-image.sh /root/worker.tar <sha256 of worker.tar> --worker
    ```
-   It prints an ID like `sha256:…` — Node project policies need it
-   ([deploy-node.md](deploy-node.md)).
+   `--worker` writes the image ID into `/etc/sandbox/defaults/worker.conf`.
+   From then on Node and Docker projects deploy without any root steps.
 
 ## 4. Check
 
@@ -229,7 +242,7 @@ archive over and load it:
 ```bash
 sudo /srv/deploy/load-image.sh caddy.tar <sha256> --caddy   # writes the ID into /srv/caddy/.env
 cd /srv/caddy && docker compose up -d
-sudo /srv/deploy/load-image.sh worker.tar <sha256>          # put the ID into Node project policies
+sudo /srv/deploy/load-image.sh worker.tar <sha256> --worker # the ID goes into the default policy
 ```
 
 Review the images monthly: exceptions in `exceptions.json` are granted for
@@ -258,7 +271,8 @@ Review the images monthly: exceptions in `exceptions.json` are granted for
 | `https://sandbox.<domain>` does not open | the separate `sandbox` A record, ports 80/443 in the provider's firewall |
 | push succeeds but "ДЕПЛОЙ ПРОВАЛЕН" (deploy failed) | `sandbox-deploy logs <app>`: the full build log of that commit |
 | "деплой отложен: на диске мало места" (low disk space) | `df -h`, `sudo /srv/deploy/maintenance.sh` |
-| Node: "root-owned execution policy required" | no `/etc/sandbox/projects/<app>.conf` — see [deploy-node.md](deploy-node.md) |
-| Docker: "не допущен политикой" (not admitted by policy) | no `profile=compose` policy — see [deploy-docker.md](deploy-docker.md) |
+| Node: "root-owned execution policy required" | no `/etc/sandbox/defaults/worker.conf` — `sudo ./update-infra.sh` |
+| Node: "image in … must be …" | the worker image is not loaded — `load-image.sh … --worker` |
+| Docker: "не допущен политикой" (not admitted by policy) | no `/etc/sandbox/defaults/compose.conf` — `sudo ./update-infra.sh` |
 
 Server-side messages are in Russian; the English gloss is given in brackets.

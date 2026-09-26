@@ -58,4 +58,14 @@ assert_ok 'image present after loading' docker image inspect "$ID"
 assert_eq 'Caddy .env points at the loaded ID' "SANDBOX_CADDY_IMAGE=$ID" "$(grep '^SANDBOX_CADDY_IMAGE=' "$SB/caddy/.env")"
 assert_eq 'other .env keys kept' 'TIMEWEB_API_TOKEN=x' "$(grep '^TIMEWEB' "$SB/caddy/.env")"
 assert_ok 'loaded ID is a valid worker image' is_pinned_image "$loaded"
+
+echo "== ID worker в политику по умолчанию =="
+mkdir "$SB/defaults"
+assert_fail 'no default policy: refused before loading' \
+    env SANDBOX_POLICY_DEFAULTS="$SB/defaults" bash "$ROOT/deploy/load-image.sh" "$SB/img.tar" "$SUM" --worker
+printf 'profile=worker\nimage=\nmemory_mb=512\n' > "$SB/defaults/worker.conf"
+loaded=$(SANDBOX_POLICY_DEFAULTS="$SB/defaults" bash "$ROOT/deploy/load-image.sh" "$SB/img.tar" "$SUM" --worker 2>/dev/null)
+assert_eq 'default worker policy gets the loaded ID' "image=$ID" "$(grep '^image=' "$SB/defaults/worker.conf")"
+assert_eq 'other policy keys kept' 'memory_mb=512' "$(grep '^memory_mb=' "$SB/defaults/worker.conf")"
+assert_fail 'unknown option refused' bash "$ROOT/deploy/load-image.sh" "$SB/img.tar" "$SUM" --nope
 finish
