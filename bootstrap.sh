@@ -18,7 +18,7 @@ if [[ -n ${SANDBOX_CADDY_ARCHIVE:-} ]]; then
         || die 'SANDBOX_CADDY_ARCHIVE должен быть файлом, SANDBOX_CADDY_ARCHIVE_SHA256 — его SHA-256'
     SANDBOX_CADDY_ARCHIVE=$(readlink -f -- "$SANDBOX_CADDY_ARCHIVE")
 elif [[ ! ${SANDBOX_CADDY_IMAGE:-} =~ ^[^[:space:]@]+@sha256:[a-f0-9]{64}$ ]]; then
-    die 'Нужен SANDBOX_CADDY_ARCHIVE + SANDBOX_CADDY_ARCHIVE_SHA256 или SANDBOX_CADDY_IMAGE=<образ>@sha256:<digest> (см. README)'
+    die 'Нужен SANDBOX_CADDY_ARCHIVE + SANDBOX_CADDY_ARCHIVE_SHA256 или SANDBOX_CADDY_IMAGE=<образ>@sha256:<digest> (см. docs/ru/install.md)'
 fi
 echo "==> Sandbox infrastructure bootstrap"
 
