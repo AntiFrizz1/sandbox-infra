@@ -226,6 +226,9 @@ if docker info >/dev/null 2>&1; then
     assert_eq 'runtime pids limit' 64 "$(docker inspect -f '{{.HostConfig.PidsLimit}}' "$cid")"
     assert_eq 'runtime no-new-privileges' '[no-new-privileges:true]' "$(docker inspect -f '{{.HostConfig.SecurityOpt}}' "$cid")"
     assert_eq 'runtime log driver' local "$(docker inspect -f '{{.HostConfig.LogConfig.Type}}' "$cid")"
+    assert_eq 'runtime drops risky default capabilities' 'AUDIT_WRITE MKNOD NET_RAW SETFCAP SYS_CHROOT' \
+        "$(docker inspect -f '{{range .HostConfig.CapDrop}}{{.}} {{end}}' "$cid" | tr ' ' '\n' | sed 's/^CAP_//' | sort | xargs)"
+    assert_ok 'service still answers without them' docker exec "$cid" wget -qO- http://127.0.0.1:8080
     assert_ok 'down by project name only' bash -c "cd / && docker compose -p '$PROJECT' down"
     assert_eq 'no containers left' '' "$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT")"
 else

@@ -334,8 +334,11 @@ Compose из коммита исполняется host daemon'ом, поэто�
 built-образ с чужим именем. Лейблы Caddy: только `caddy` с адресами внутри
 `<name>.<домен>` и `caddy.reverse_proxy: "{{upstreams [порт]}}"`.
 
-Лимиты памяти, CPU и PID, `no-new-privileges` и ротацию логов добавляет
-серверный override. Интерполяция видит только `/srv/state/<name>/env`, а не
+Лимиты памяти, CPU и PID, `no-new-privileges`, ротацию логов и отказ от
+capabilities `NET_RAW`, `MKNOD`, `SYS_CHROOT`, `SETFCAP`, `AUDIT_WRITE`
+(обычным сервисам вроде nginx, postgres и node они не нужны, а взломщику дают
+подделку пакетов в `sandbox_net` и создание устройств) добавляет серверный
+override. Интерполяция видит только `/srv/state/<name>/env`, а не
 `.env` репозитория. Проект запускается как `-p <name>`; stop и remove
 работают по имени проекта, не читая compose-файл.
 

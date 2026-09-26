@@ -59,6 +59,10 @@ path, memory, cpus, pids = sys.argv[1], int(sys.argv[2]), sys.argv[3], int(sys.a
 services = sys.argv[5:]
 enforced = {
     'security_opt': ['no-new-privileges:true'],
+    # Docker's defaults minus what ordinary services (nginx, postgres, node)
+    # never need but an attacker with code execution would use: raw sockets
+    # to spoof traffic on sandbox_net, device nodes, chroot, file capabilities.
+    'cap_drop': ['NET_RAW', 'MKNOD', 'SYS_CHROOT', 'SETFCAP', 'AUDIT_WRITE'],
     'logging': {'driver': 'local', 'options': {'max-size': '10m', 'max-file': '3'}},
     'memswap_limit': f'{memory}m',
     'deploy': {'resources': {'limits': {'memory': f'{memory}m', 'cpus': cpus, 'pids': pids}}},
