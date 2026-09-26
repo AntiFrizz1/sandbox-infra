@@ -9,3 +9,6 @@
 *.key
 id_rsa*
 id_ed25519*
+
+# Image archives made by scripts/export-image.sh
+*.tar

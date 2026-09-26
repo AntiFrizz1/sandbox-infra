@@ -1,1 +1,0 @@
-PASS migration/deploy/rollback and relative current; real Caddy GET/HEAD denial, encoded/nested paths, SPA, ACME; second UID cannot read private env
