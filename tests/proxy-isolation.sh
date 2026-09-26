@@ -47,6 +47,7 @@ services:
     networks: [control, ingress]
   controller:
     image: $IMAGE
+    userns_mode: host
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]

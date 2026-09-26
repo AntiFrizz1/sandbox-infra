@@ -41,6 +41,9 @@ services:
   controller:
     <<: *common
     command: caddy docker-proxy --caddyfile-path /etc/caddy/Caddyfile
+    # Needs the Docker socket, which a remapped root cannot open. It has no
+    # published ports and sits only on the internal control network.
+    userns_mode: host
     environment:
       CADDY_DOCKER_MODE: controller
       CADDY_CONTROLLER_NETWORK: ${SANDBOX_CONTROL_SUBNET:-172.31.254.0/28}

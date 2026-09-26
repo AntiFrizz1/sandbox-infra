@@ -79,7 +79,10 @@ worker_phase() {
     local -a extra=()
     while (( $# )) && [[ $1 != -- ]]; do extra+=("$1"); shift; done
     (( $# )) && shift
-    cid=$(docker create --pull=never --user "$(id -u):$(id -g)" \
+    # --userns=host: the worker already runs as the unprivileged deploy UID
+    # without capabilities; under userns-remap it could not write its own
+    # deploy-owned output tree otherwise.
+    cid=$(docker create --pull=never --user "$(id -u):$(id -g)" --userns=host \
         --read-only --cap-drop ALL --security-opt no-new-privileges \
         --network "$network" --cpus "$RUN_CPUS" --memory "${RUN_MEMORY}m" \
         --memory-swap "${RUN_MEMORY}m" --pids-limit "$RUN_PIDS" \

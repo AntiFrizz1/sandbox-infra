@@ -53,6 +53,24 @@ apt-get install -y util-linux
 
 install -d -m 755 -o root -g root /etc/sandbox /etc/sandbox/projects
 
+# --- 2a. userns-remap ---
+# root в контейнерах проектов становится непривилегированным UID хоста.
+# Включается только на чистом Docker: у remap отдельный каталог данных, и
+# существующие контейнеры, образы и тома стали бы невидимы. Для работающего
+# VPS — процедура из docs/SECURITY-RUNBOOK.md.
+if [[ ${SANDBOX_USERNS_REMAP:-true} == true ]]; then
+    if [[ $(docker info --format '{{range .SecurityOptions}}{{.}} {{end}}') == *userns* ]]; then
+        echo "==> userns-remap уже включён"
+    elif [[ -z $(docker ps -aq) && -z $(docker volume ls -q) ]]; then
+        echo "==> Включаю userns-remap"
+        bash "$SCRIPT_DIR/deploy/userns.sh" enable
+        systemctl restart docker
+    else
+        echo "!! userns-remap не включён: в Docker уже есть контейнеры или тома."
+        echo "   Перенос — по docs/SECURITY-RUNBOOK.md, раздел про userns-remap."
+    fi
+fi
+
 # --- 3. Общая docker-сеть ---
 docker network inspect sandbox_net &>/dev/null || docker network create sandbox_net
 # Only the worker's fetch phase joins this network; no project code runs there.

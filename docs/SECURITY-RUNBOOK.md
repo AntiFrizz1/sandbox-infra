@@ -156,6 +156,37 @@ image digest. Остановить новые deploy через SSH/post-receive
    к нему уведомление (например, `OnFailure=` юнита) по своему вкусу.
    `docker system prune --volumes` не использовать.
 
+## userns-remap на работающем VPS
+
+Remap даёт Docker отдельный каталог данных (`/var/lib/docker/<uid>.<gid>`):
+после включения прежние контейнеры, образы, сети и тома не видны. Исходные
+данные не удаляются, поэтому откат — вернуть `daemon.json` и перезапустить
+Docker.
+
+1. Остановить стеки проектов и Caddy: `docker compose -p <name> down`
+   (без `-v`), в `/srv/caddy` — `docker compose down`.
+2. `sudo /srv/deploy/userns.sh enable --dry-run`, затем без флага;
+   `sudo systemctl restart docker`.
+3. `sudo /srv/deploy/userns.sh migrate-volumes --dry-run`, затем без флага:
+   тома копируются в новый корень со сдвигом владельцев (исходные остаются).
+   Том `caddy_data` с сертификатами переносится так же. `sudo systemctl
+   restart docker`.
+4. Пересоздать сети: `docker network create sandbox_net` и
+   `docker network create --label sandbox.role=build sandbox_build`;
+   заново загрузить образы Caddy и worker по digest.
+5. Каталоги проектов, в которые контейнер пишет через bind-mount, теперь
+   должны принадлежать сдвинутому UID: для процесса root внутри —
+   `chown -R <начало диапазона из /etc/subuid>:… /srv/apps/<name>/<dir>`.
+   Лучше перевести такие данные в именованные тома.
+6. Поднять Caddy, передеплоить проекты, проверить HTTP и сертификаты.
+   `docker run --rm busybox cat /proc/self/uid_map` должен показать не `0 0`.
+7. Старые тома в `/var/lib/docker/volumes` удалить только после проверки.
+
+Controller Caddy (`userns_mode: host`, ему нужен Docker socket) и worker
+(`--userns=host`, он и так работает от UID deploy без capabilities) остаются
+в пространстве имён хоста. Проекты не могут отказаться от remap: линтер не
+пропускает `userns_mode`.
+
 ## Откат
 
 Сначала остановить admission, дождаться locks. Вернуть только предыдущий
