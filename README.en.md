@@ -18,8 +18,8 @@ test project must not reach the server.
   [the detailed plan from the old layout](docs/MIGRATION-LEGACY.md),
   [security status](docs/SECURITY-REMEDIATION-STATUS.md),
   [apply and rollback runbook](docs/SECURITY-RUNBOOK.md),
-  [audit](docs/SECURITY-AUDIT-2026-09-20.md),
-  [remediation plan](docs/SECURITY-REMEDIATION-PLAN.md)
+  [remediation plan](docs/SECURITY-REMEDIATION-PLAN.md). The audit itself and
+  its PoCs are not published until the live VPS has been updated.
 
 ## Security remediation
 
@@ -98,7 +98,7 @@ docs/
   ru/, en/               — installation and deployment guides
   MIGRATION.md           — moving a deployed VPS to the new layout (Russian)
   MIGRATION-LEGACY.md    — detailed step-by-step plan from the old layout (Russian)
-  SECURITY-*.md          — audit, plan, status and runbook (Russian)
+  SECURITY-*.md          — plan, status and runbook (Russian)
 caddy/
   Dockerfile           — Caddy built with xcaddy (docker-proxy + timeweb), pinned by digest
   docker-compose.yml   — public server and the controller with the Docker socket
