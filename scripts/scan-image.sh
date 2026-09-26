@@ -44,6 +44,10 @@ def store(src, base):
     else:
         target = out / base
         target.write_bytes(data)
+    # A previous scan may have stored the other form; a stale copy next to the
+    # current one would look like evidence for this image.
+    other = out / (base if target.name.endswith('.gz') else base + '.gz')
+    other.unlink(missing_ok=True)
     return {'file': target.name, 'sha256': hashlib.sha256(target.read_bytes()).hexdigest()}
 
 manifest_path = out / 'release-manifest.json'
