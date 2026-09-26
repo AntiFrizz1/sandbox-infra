@@ -203,8 +203,9 @@ echo
 echo "== боевой Caddyfile синтаксически корректен =="
 # Проверяется структура шаблона вместе с реально сгенерированным сниппетом.
 # Блок `tls { dns timeweb ... }` требует плагина, которого нет в официальном
-# образе, поэтому он целиком заменяется на `tls internal`.
-perl -0pe 's/tls \{\n\s*dns timeweb[^\n]*\n\s*\}/tls internal/' \
+# образе, поэтому он целиком (с настройками DNS-проверки) заменяется на
+# `tls internal`.
+perl -0pe 's/tls \{\n\s*dns timeweb.*?\n\s*\}\n/tls internal\n/s' \
     "$ROOT/caddy/Caddyfile" > "$SB/prod-Caddyfile"
 assert_eq "подстановка tls сработала" "да" \
     "$(grep -q '^\s*tls internal' "$SB/prod-Caddyfile" && echo да || echo нет)"
