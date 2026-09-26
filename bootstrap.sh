@@ -146,12 +146,15 @@ echo "==> Запускаю Caddy"
 cd /srv/caddy
 docker compose up -d
 
+# --- 6. Закалка хоста: автообновления, SSH только по ключу ---
+bash "$SCRIPT_DIR/deploy/harden-host.sh"
+
 cat <<'EOF'
 
 ==> Готово.
 
 Дальше нужно вручную:
-  1. В /srv/caddy/Caddyfile и /srv/sandbox.conf заменить sandbox.example.com
+  1. В /srv/caddy/config/Caddyfile и /srv/sandbox.conf заменить sandbox.example.com
      на свой домен.
   2. В /srv/caddy/.env вписать TIMEWEB_API_TOKEN.
   3. Перезапустить Caddy: cd /srv/caddy && docker compose up -d --force-recreate
@@ -159,6 +162,8 @@ cat <<'EOF'
        *.sandbox.<домен>  -> IP этого VPS  (wildcard)
        sandbox.<домен>    -> IP этого VPS  (apex, отдельной записью)
   5. Добавить свой публичный SSH-ключ в /home/deploy/.ssh/authorized_keys.
+  6. Если выше было «у root нет ключа»: добавить ключ в /root/.ssh/authorized_keys
+     и запустить /srv/deploy/harden-host.sh — он отключит вход по паролю.
 
 Создать первый проект:
   /srv/deploy/new-app.sh myapp

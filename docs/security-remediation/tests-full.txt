@@ -146,10 +146,12 @@
   ok   runtime pids limit
   ok   runtime no-new-privileges
   ok   runtime log driver
+  ok   runtime drops risky default capabilities
+  ok   service still answers without them
   ok   down by project name only
   ok   no containers left
 
-  итого: 57 проверок, 0 провалов
+  итого: 59 проверок, 0 провалов
 
 === test_deploy.sh ===
 == первый деплой ==
@@ -248,6 +250,36 @@
   ok   статика не тронута
 
   итого: 59 проверок, 0 провалов
+
+=== test_firewall.sh ===
+  ok   firewall scenario ran
+  ok   everything reachable before the firewall
+  ok   container cannot reach the host
+  ok   container cannot reach other host addresses
+  ok   container cannot reach the private network
+  ok   container cannot reach cloud metadata
+  ok   container still reaches the internet
+  ok   containers on the bridge still talk (Caddy → app)
+  ok   host still reaches containers (health checks)
+  ok   re-running produces the same ruleset
+
+  итого: 10 проверок, 0 провалов
+
+=== test_harden_host.sh ===
+  ok   dry run writes nothing
+  ok   without a root key SSH is left alone
+  ok   passwords stay on without a key (no lockout)
+  ok   unattended-upgrades installed
+  ok   daily lists and upgrades enabled
+  ok   reboot for new kernels enabled
+  ok   with a root key passwords are off, despite cloud-init
+  ok   root only by key
+  ok   keyboard-interactive off
+  ok   re-run changes nothing
+  ok   rejected configuration fails
+  ok   rejected drop-in rolled back
+
+  итого: 12 проверок, 0 провалов
 
 === test_maintenance.sh ===
 == dry-run ничего не меняет ==
@@ -747,6 +779,25 @@
 
   итого: 34 проверок, 0 провалов
 
+=== test_userns.sh ===
+  ok   dind scenario ran
+  ok   daemon.json enables remapping (idempotent)
+  ok   subordinate range is unprivileged
+  ok   container root maps to that range
+  ok   remapped root cannot write root-owned host paths
+  ok   remapped container cannot use the Docker socket
+  ok   controller-style opt-out still can
+  ok   worker writes its output with --userns=host
+  ok   without the opt-out it could not
+  ok   old volumes are invisible before migration
+  ok   dry run copies nothing
+  ok   migrated volume keeps data and in-container owner
+  ok   original volume untouched
+  ok   on the host the owner is shifted into the range
+  ok   remapped public proxy serves deploy-owned sites on port 80
+
+  итого: 15 проверок, 0 провалов
+
 === test_validate.sh ===
 == имена проектов: валидные ==
   ok   принимает 'a'
@@ -849,4 +900,4 @@
   ok   shellcheck чист
 
 ===============================
-ВСЕ ТЕСТЫ ПРОЙДЕНЫ (18 файлов)
+ВСЕ ТЕСТЫ ПРОЙДЕНЫ (21 файлов)
