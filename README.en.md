@@ -16,10 +16,9 @@ test project must not reach the server.
 - [Deploying a Docker project (backend, database, bot)](docs/en/deploy-docker.md)
 - In Russian only: [migrating a running VPS](docs/MIGRATION.md),
   [the detailed plan from the old layout](docs/MIGRATION-LEGACY.md),
-  [security status](docs/SECURITY-REMEDIATION-STATUS.md),
-  [apply and rollback runbook](docs/SECURITY-RUNBOOK.md),
-  [remediation plan](docs/SECURITY-REMEDIATION-PLAN.md). The audit itself and
-  its PoCs are not published until the live VPS has been updated.
+  [apply and rollback runbook](docs/SECURITY-RUNBOOK.md). The security audit,
+  the remediation plan and its status are not published until the live VPS has
+  been updated.
 
 ## Security remediation
 
@@ -98,7 +97,7 @@ docs/
   ru/, en/               — installation and deployment guides
   MIGRATION.md           — moving a deployed VPS to the new layout (Russian)
   MIGRATION-LEGACY.md    — detailed step-by-step plan from the old layout (Russian)
-  SECURITY-*.md          — plan, status and runbook (Russian)
+  SECURITY-RUNBOOK.md    — applying the security changes and rollback (Russian)
 caddy/
   Dockerfile           — Caddy built with xcaddy (docker-proxy + timeweb), pinned by digest
   docker-compose.yml   — public server and the controller with the Docker socket

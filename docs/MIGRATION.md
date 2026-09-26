@@ -1,7 +1,7 @@
 # Миграция sandbox-infra
 
-Для security-remediation использовать [SECURITY-RUNBOOK.md](SECURITY-RUNBOOK.md)
-и [текущий статус](SECURITY-REMEDIATION-STATUS.md). Установка нового hook меняет
+Для security-remediation использовать [SECURITY-RUNBOOK.md](SECURITY-RUNBOOK.md).
+Установка нового hook меняет
 совместимость Node/Docker; требуется инвентаризация до обновления.
 
 `migrate.sh audit` только читает состояние. `state --dry-run` и `sites --dry-run`

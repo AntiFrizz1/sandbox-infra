@@ -16,10 +16,9 @@ post-receive хук и Caddy с автоматическим TLS (DNS-01, Timewe
 - [Деплой Docker-проекта (backend, база, бот)](docs/ru/deploy-docker.md)
 - [Перевод работающего VPS](docs/MIGRATION.md) и
   [подробный план со старой раскладки](docs/MIGRATION-LEGACY.md)
-- Безопасность: [статус замечаний](docs/SECURITY-REMEDIATION-STATUS.md),
-  [runbook применения и отката](docs/SECURITY-RUNBOOK.md),
-  [план исправлений](docs/SECURITY-REMEDIATION-PLAN.md). Сам аудит и PoC
-  не публикуются, пока действующий VPS не обновлён.
+- [Runbook применения и отката](docs/SECURITY-RUNBOOK.md). Аудит
+  безопасности, план исправлений и их статус не публикуются, пока действующий
+  VPS не обновлён.
 
 ## Security remediation
 
@@ -98,7 +97,7 @@ docs/
   ru/, en/               — руководства по установке и деплою
   MIGRATION.md           — перевод уже развёрнутого VPS на новую раскладку
   MIGRATION-LEGACY.md    — подробный пофазный план со старой раскладки
-  SECURITY-*.md          — план, статус и runbook применения
+  SECURITY-RUNBOOK.md    — применение изменений безопасности и откат
 caddy/
   Dockerfile           — сборка Caddy через xcaddy (docker-proxy + timeweb), по digest
   docker-compose.yml   — публичный server и controller с Docker socket
