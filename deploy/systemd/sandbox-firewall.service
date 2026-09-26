@@ -1,0 +1,14 @@
+[Unit]
+Description=Keep containers away from the host and private networks
+Documentation=file:///srv/deploy/firewall.sh
+After=docker.service
+# Re-applied whenever Docker (re)starts; iptables rules do not survive a reboot.
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/srv/deploy/firewall.sh
+
+[Install]
+WantedBy=docker.service

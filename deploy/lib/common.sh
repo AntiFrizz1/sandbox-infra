@@ -238,16 +238,20 @@ require_free_space() {
     (( free >= need )) || { warn "свободно ${free} МБ на разделе с $1, нужно не меньше ${need}"; return 1; }
 }
 
-# install_maintenance_timer <deploy-source-dir>
-# Installs and enables sandbox-maintenance.timer. Without root or systemd
-# (containers, tests) it only says so: retention then has to be run by hand.
-install_maintenance_timer() {
+# install_host_units <deploy-source-dir>
+# Installs and enables sandbox-maintenance.timer and sandbox-firewall.service.
+# Without root or systemd (containers, tests) it only says so: then
+# maintenance.sh and firewall.sh have to be run by hand.
+install_host_units() {
     local unitdir=${SANDBOX_SYSTEMD_DIR:-/etc/systemd/system}
     if (( EUID != 0 )) || ! command -v systemctl >/dev/null 2>&1 || [[ ! -d $unitdir ]]; then
-        warn "systemd недоступен — таймер обслуживания не установлен; запускай maintenance.sh вручную"
+        warn "systemd недоступен — таймер обслуживания и firewall не установлены; запускай maintenance.sh и firewall.sh вручную"
         return 0
     fi
     install -m 644 -o root -g root "$1/systemd/sandbox-maintenance.service" \
-        "$1/systemd/sandbox-maintenance.timer" "$unitdir/" || return 1
-    systemctl daemon-reload && systemctl enable --now sandbox-maintenance.timer
+        "$1/systemd/sandbox-maintenance.timer" "$1/systemd/sandbox-firewall.service" "$unitdir/" || return 1
+    systemctl daemon-reload \
+        && systemctl enable --now sandbox-maintenance.timer \
+        && systemctl enable sandbox-firewall.service \
+        && systemctl restart sandbox-firewall.service
 }
