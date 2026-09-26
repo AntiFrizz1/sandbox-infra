@@ -3,10 +3,10 @@
   "Trivy": {
     "Version": "0.74.0"
   },
-  "ReportID": "01a0da1c-348e-7048-82da-74f7c4ec55b1",
-  "CreatedAt": "2026-09-25T19:47:56.686019991Z",
-  "ArtifactID": "sha256:d0c5974b9e60059b6782130cccbc713e1bb7fe316e06de4eb8d2337e020b7715",
-  "ArtifactName": "sandbox-security-caddy:candidate",
+  "ReportID": "01a0dd97-4cb4-7e40-a9fc-acd237bf6d47",
+  "CreatedAt": "2026-09-26T12:01:15.444936178Z",
+  "ArtifactID": "sha256:e3e5fccf1c42e6879f9a27184bde916f89570aa3fb1f92b2dd3a7da3634ee031",
+  "ArtifactName": "sandbox-caddy:candidate",
   "ArtifactType": "container_image",
   "Metadata": {
     "Size": 113082880,
@@ -14,25 +14,25 @@
       "Family": "alpine",
       "Name": "3.23.6"
     },
-    "ImageID": "sha256:58ee8a6a3017638c286ebbe4b9abe4873d3115b04680714bb6f9d9b99ddd56f6",
+    "ImageID": "sha256:97af11bec2f7995be693bc4184786dd0f24cb476c6efd446555271e5369a8d39",
     "DiffIDs": [
       "sha256:e63b02c2b5c761df2cb95e657d744f27d95da4e051235a13c80b88cd68eab188",
       "sha256:c56ed5007fe949efbc262fb0cbf5dd1bb1c60954b423375e37b3fc6faa478d39",
       "sha256:b5691abaf4ca50aadf0bb3d1ba4a044164bccaa0c8ec4fba98edb6b74c9d1f76",
       "sha256:b772a028c043e792604569b2a9835c29bab7f909d4b16fd6b14cceac6efde5c7",
       "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
-      "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+      "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
     ],
     "RepoTags": [
-      "sandbox-security-caddy:candidate"
+      "sandbox-caddy:candidate"
     ],
     "RepoDigests": [
-      "sandbox-security-caddy@sha256:58ee8a6a3017638c286ebbe4b9abe4873d3115b04680714bb6f9d9b99ddd56f6"
+      "sandbox-caddy@sha256:97af11bec2f7995be693bc4184786dd0f24cb476c6efd446555271e5369a8d39"
     ],
-    "Reference": "sandbox-security-caddy:candidate",
+    "Reference": "sandbox-caddy:candidate",
     "ImageConfig": {
       "architecture": "amd64",
-      "created": "2026-09-20T20:57:51.480433173Z",
+      "created": "2026-09-26T11:55:52.969653326Z",
       "history": [
         {
           "created": "2026-09-17T20:37:33Z",
@@ -162,7 +162,7 @@
           "empty_layer": true
         },
         {
-          "created": "2026-09-20T20:57:51Z",
+          "created": "2026-09-26T11:55:52Z",
           "created_by": "/bin/sh -c #(nop) COPY file:7e631a5c38a4262136544290cc4c50579dc6f5db7b9d503dc16cd17f7058fd16 in /usr/bin/caddy "
         }
       ],
@@ -175,7 +175,7 @@
           "sha256:b5691abaf4ca50aadf0bb3d1ba4a044164bccaa0c8ec4fba98edb6b74c9d1f76",
           "sha256:b772a028c043e792604569b2a9835c29bab7f909d4b16fd6b14cceac6efde5c7",
           "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
-          "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+          "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
         ]
       },
       "config": {
@@ -240,14 +240,14 @@
       },
       {
         "Size": 49638400,
-        "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-        "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+        "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+        "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
       }
     ]
   },
   "Results": [
     {
-      "Target": "sandbox-security-caddy:candidate (alpine 3.23.6)",
+      "Target": "sandbox-caddy:candidate (alpine 3.23.6)",
       "Class": "os-pkgs",
       "Type": "alpine",
       "Packages": [
@@ -1606,8 +1606,8 @@
           "Version": "v1.26.8",
           "Relationship": "direct",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -1620,8 +1620,8 @@
           },
           "Version": "v0.25.2",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -1858,8 +1858,8 @@
           },
           "Version": "v1.0.1",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -1984,8 +1984,8 @@
           },
           "Version": "v1.0.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -1998,8 +1998,8 @@
           },
           "Version": "v0.3.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2040,8 +2040,8 @@
           },
           "Version": "v0.6.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2068,8 +2068,8 @@
           },
           "Version": "v0.7.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2082,8 +2082,8 @@
           },
           "Version": "v0.5.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2180,8 +2180,8 @@
           },
           "Version": "v1.4.4",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2320,8 +2320,8 @@
           },
           "Version": "v2.29.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2348,8 +2348,8 @@
           },
           "Version": "v1.5.1",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2404,8 +2404,8 @@
           },
           "Version": "v1.1.1",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2418,8 +2418,8 @@
           },
           "Version": "v2.13.1",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2558,8 +2558,8 @@
           },
           "Version": "v1.3.1",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2572,8 +2572,8 @@
           },
           "Version": "v1.55.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2586,8 +2586,8 @@
           },
           "Version": "v0.5.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2614,8 +2614,8 @@
           },
           "Version": "v1.0.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -2628,8 +2628,8 @@
           },
           "Version": "v1.1.1",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3244,8 +3244,8 @@
           },
           "Version": "v1.45.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3258,8 +3258,8 @@
           },
           "Version": "v0.21.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3272,8 +3272,8 @@
           },
           "Version": "v0.21.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3314,8 +3314,8 @@
           },
           "Version": "v1.45.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3328,8 +3328,8 @@
           },
           "Version": "v1.45.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3342,8 +3342,8 @@
           },
           "Version": "v1.45.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3370,8 +3370,8 @@
           },
           "Version": "v0.21.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3412,8 +3412,8 @@
           },
           "Version": "v0.21.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3426,8 +3426,8 @@
           },
           "Version": "v1.45.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3440,8 +3440,8 @@
           },
           "Version": "v1.45.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3454,8 +3454,8 @@
           },
           "Version": "v0.21.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3468,8 +3468,8 @@
           },
           "Version": "v1.45.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3482,8 +3482,8 @@
           },
           "Version": "v1.45.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3496,8 +3496,8 @@
           },
           "Version": "v1.11.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3608,8 +3608,8 @@
           },
           "Version": "v0.56.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3650,8 +3650,8 @@
           },
           "Version": "v0.56.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3678,8 +3678,8 @@
           },
           "Version": "v0.22.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3692,8 +3692,8 @@
           },
           "Version": "v0.47.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3706,8 +3706,8 @@
           },
           "Version": "v0.45.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3720,8 +3720,8 @@
           },
           "Version": "v0.39.0",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3762,8 +3762,8 @@
           },
           "Version": "v0.0.0-20260803160001-6ac0973c030d",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3776,8 +3776,8 @@
           },
           "Version": "v0.0.0-20260803160001-6ac0973c030d",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3790,8 +3790,8 @@
           },
           "Version": "v1.83.2",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "AnalyzedBy": "gobinary"
         },
@@ -3847,7 +3847,7 @@
             "Name": "GitHub Security Advisory Go",
             "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Ago"
           },
-          "Fingerprint": "sha256:1cfaa4461841cda994b811e573f64c815a0f35248d4860f526f0139e8e200526",
+          "Fingerprint": "sha256:a9ab0b40b31892d7ac918e1a1dc56d526d9575ad794139748d04c0b33321db5d",
           "Title": "cel-go: JSON Private Fields Exposed via NativeTypes and ParseStructTag",
           "Description": "The function `ext.NativeTypes(ParseStructTag(\"json\"))` does not honour the `encoding/json` skip directive `json:\"-\"`. Fields tagged `json:\"-\"` are registered in the CEL type system under the literal name `\"-\"` and are readable from any user-submitted CEL expression via `dyn(obj)[\"-\"]`. \n\nAdditionally, `newNativeTypes` silently registers every nested struct reachable from the type passed to `NativeTypes`, including types from third-party dependencies the developer never examined.\n\n## Root cause\n\nIn `fieldNameByTag`, the helper used by `ParseStructTag(\"json\")` to translate Go struct tags into CEL field names.\n\nSee at `ext/native.go:146`:\n\n```go\nfunc fieldNameByTag(structTagToParse string) func(field reflect.StructField) string {\n    return func(field reflect.StructField) string {\n        tag, found := field.Tag.Lookup(structTagToParse)\n        if found {\n            splits := strings.Split(tag, \",\")\n            if len(splits) \u003e 0 {\n                // We make the assumption that the leftmost entry in the tag is the name.\n                // This seems to be true for most tags that have the concept of a name/key, such as:\n                // https://pkg.go.dev/encoding/xml#Marshal\n                // https://pkg.go.dev/encoding/json#Marshal\n                // https://pkg.go.dev/go.mongodb.org/mongo-driver/bson#hdr-Structs\n                // https://pkg.go.dev/go.yaml.in/yaml/v3#Marshal\n                name := splits[0]\n                return name\n            }\n        }\n\n        return field.Name\n    }\n}\n```\n\nFor a field tagged `json:\"-\"`, this code splits the tag into `[]string{\"-\"}` and returns `\"-\"` as the CEL field name. It never checks whether `\"-\"` is the JSON skip sentinel.\n\nThis contradicts the `encoding/json` rule that the source comment explicitly points readers to:\n\n```text\nAs a special case, if the field tag is \"-\", the field is always omitted. Note\nthat a field with name \"-\" can still be generated using the tag \"-,\".\n```\n\nThe public option also documents JSON-style parsing as the intended behavior.\nSee at `ext/native.go:190`:\n\n```go\n// ParseStructTag configures the struct tag to parse. The 0th item in the tag is used as the name of the CEL field.\n// For example:\n// If the tag to parse is \"cel\" and the struct field has tag cel:\"foo\", the CEL struct field will be \"foo\".\n// If the tag to parse is \"json\" and the struct field has tag json:\"foo,omitempty\", the CEL struct field will be \"foo\".\nfunc ParseStructTag(tag string) NativeTypesOption {\n    return func(ntp *nativeTypeOptions) error {\n        ntp.fieldNameHandler = fieldNameByTag(tag)\n        return nil\n    }\n}\n```\n\nA developer using `ParseStructTag(\"json\")` is therefore led to expect `encoding/json` field-name semantics. Instead, `json:\"-\"` is treated as a real field name.\n\nThe bad name is accepted during native type construction. `newNativeType` checks for duplicate field names, but it does not reject or skip empty names or skip sentinels.\n\nSee at `ext/native.go:663`:\n\n```go\nif fieldNameHandler != nil {\n    fieldNames := make(map[string]struct{})\n\n    for idx := 0; idx \u003c refType.NumField(); idx++ {\n        field := refType.Field(idx)\n        fieldName := toFieldName(fieldNameHandler, field)\n\n        if _, found := fieldNames[fieldName]; found {\n            return nil, fmt.Errorf(\"invalid field name `%s` in struct `%s`: %w\", fieldName, refType.Name(), errDuplicatedFieldName)\n        } else {\n            fieldNames[fieldName] = struct{}{}\n        }\n    }\n}\n```\n\nOnce accepted, the field becomes part of CEL's view of the type. Field enumeration reports it as a normal field name.\n\nSee at `ext/native.go:286`:\n\n```go\nfunc (tp *nativeTypeProvider) FindStructFieldNames(typeName string) ([]string, bool) {\n    if t, found := tp.nativeTypes[typeName]; found {\n        fieldCount := t.refType.NumField()\n        fields := make([]string, fieldCount)\n        for i := 0; i \u003c fieldCount; i++ {\n            fields[i] = toFieldName(tp.options.fieldNameHandler, t.refType.Field(i))\n        }\n        return fields, true\n    }\n    if celTypeFields, found := tp.baseProvider.FindStructFieldNames(typeName); found {\n        return celTypeFields, true\n    }\n    return tp.baseProvider.FindStructFieldNames(typeName)\n}\n```\n\nField lookup also treats the name as valid and returns the underlying Go field value.\n\nSee at `ext/native.go:303`:\n\n```go\nfunc (tp *nativeTypeProvider) FindStructFieldType(typeName, fieldName string) (*types.FieldType, bool) {\n    t, found := tp.nativeTypes[typeName]\n    if !found {\n        return tp.baseProvider.FindStructFieldType(typeName, fieldName)\n    }\n    refField, isDefined := t.hasField(fieldName)\n    if !found || !isDefined {\n        return nil, false\n    }\n\n    return \u0026types.FieldType{\n        IsSet: func(obj any) bool {\n            refVal := reflect.Indirect(reflect.ValueOf(obj))\n            refField := refVal.FieldByName(refField.Name)\n            return !refField.IsZero()\n        },\n        GetFrom: func(obj any) (any, error) {\n            refVal := reflect.Indirect(reflect.ValueOf(obj))\n            refField := refVal.FieldByName(refField.Name)\n            return getFieldValue(refField), nil\n        },\n    }, true\n}\n```\n\nAt runtime, native objects advertise index access.\nSee at `ext/native.go:37`:\n\n```go\nvar (\n    nativeObjTraitMask = traits.FieldTesterType | traits.IndexerType\n)\n```\n\nBecause `traits.IndexerType` is present, a user expression can bypass ordinary field syntax and read the registered `\"-\"` field with bracket access:\n\n```cel\ndyn(req.auth)[\"-\"]\n```\n\nThe same mistaken name is also used when converting native objects to JSON-like CEL values. `ConvertToNative(jsonStructType)` iterates all Go struct fields, computes the CEL field name, and inserts it into the output map without applying the JSON skip rule.\n\nSee at `ext/native.go:501`:\n\n```go\ncase jsonStructType:\n    refVal := reflect.Indirect(o.refValue)\n    refType := refVal.Type()\n    fields := make(map[string]*structpb.Value, refVal.NumField())\n    for i := 0; i \u003c refVal.NumField(); i++ {\n        fieldType := refType.Field(i)\n        fieldValue := refVal.Field(i)\n        if !fieldValue.IsValid() || fieldValue.IsZero() {\n            continue\n        }\n        fieldName := toFieldName(o.valType.fieldNameHandler, fieldType)\n        fieldCELVal := o.NativeToValue(fieldValue.Interface())\n        fieldJSONVal, err := fieldCELVal.ConvertToNative(jsonValueType)\n        if err != nil {\n            return nil, err\n        }\n        fields[fieldName] = fieldJSONVal.(*structpb.Value)\n    }\n    return \u0026structpb.Struct{Fields: fields}, nil\n```\n\nThis means a `json:\"-\"` secret is exposed in two ways: it can be read directly through CEL indexing as `dyn(obj)[\"-\"]`, and it can appear under the key `\"-\"` in JSON struct conversion output.\n\nThe blast radius is widened by `newNativeTypes`, which registers not only the type explicitly passed to `NativeTypes`, but also every nested struct reachable from its fields.\n\nSee at `ext/native.go:609`:\n\n```go\nfunc newNativeTypes(fieldNameHandler NativeTypesFieldNameHandler, rawType reflect.Type) ([]*nativeType, error) {\n    nt, err := newNativeType(fieldNameHandler, rawType)\n    if err != nil {\n        return nil, err\n    }\n    result := []*nativeType{nt}\n\n    var iterateStructMembers func(reflect.Type)\n    iterateStructMembers = func(t reflect.Type) {\n        if k := t.Kind(); k == reflect.Pointer || k == reflect.Slice || k == reflect.Array || k == reflect.Map {\n            iterateStructMembers(t.Elem())\n            return\n        }\n        if t.Kind() != reflect.Struct {\n            return\n        }\n\n        nt, ntErr := newNativeType(fieldNameHandler, t)\n        if ntErr != nil {\n            err = ntErr\n            return\n        }\n        result = append(result, nt)\n\n        for idx := 0; idx \u003c t.NumField(); idx++ {\n            iterateStructMembers(t.Field(idx).Type)\n        }\n    }\n    iterateStructMembers(rawType)\n\n    return result, err\n}\n```\n\nAs a result, a developer can register one apparently safe request type while a nested dependency type is silently registered too. If that nested type contains a `json:\"-\"` secret, CEL still receives a readable field named `\"-\"` even though the developer never registered or audited that nested type directly.\n\n## Reproduction\n\n```go\npackage main\n\nimport (\n    \"fmt\"\n    \"reflect\"\n\n    \"github.com/google/cel-go/cel\"\n    \"github.com/google/cel-go/ext\"\n)\n\n// Simulates a library type; developer never registers this directly.\ntype AuthCtx struct {\n    UserID string `json:\"userId\"`\n    Secret string `json:\"-\"` // server-internal; never appears in JSON output\n}\n\n// Developer registers only this type.\ntype Req struct{ Auth AuthCtx `json:\"auth\"` }\n\nfunc main() {\n    env, _ := cel.NewEnv(\n        // Only Req is passed; AuthCtx is registered silently by newNativeTypes.\n        ext.NativeTypes(reflect.TypeOf(Req{}), ext.ParseStructTag(\"json\")),\n        cel.Variable(\"req\", cel.ObjectType(\"main.Req\")),\n    )\n    ast, _ := env.Compile(`dyn(req.auth)[\"-\"]`)\n    prg, _ := env.Program(ast)\n    out, _, _ := prg.Eval(map[string]any{\n        \"req\": Req{Auth: AuthCtx{UserID: \"alice\", Secret: \"sk-live-s3cr3t\"}},\n    })\n    fmt.Println(out) // sk-live-s3cr3t\n}\n```\n\n**Expected:** expression compile error or empty result; `json:\"-\"` field should not be\naccessible.  \n**Actual:** `sk-live-s3cr3t`; the server-injected secret is returned verbatim.\n\nThe same field is also included under key `\"-\"` in `ConvertToNative(jsonStructType)`\noutput, and appears in `FindStructFieldNames` enumeration.\n\n### path 1. CEL indexing\n\nTested against the released module `github.com/google/cel-go v0.28.1`\n(latest stable release as of 2026-05-12), using the `go.mod` entry:\n\n```\nrequire github.com/google/cel-go v0.28.1\n```\n\nRunning the PoC above (`go run main.go`) produces:\n\n```\nsk-live-s3cr3t\n```\n\nThe secret value is returned verbatim, with no error at compile time or at runtime.\n\n### Path 2. `ConvertToNative(jsonStructType)`\n\nWhen the `nativeObj` for the `AuthCtx` value is converted to a Protobuf `Struct`\n(the representation used whenever CEL output is serialised to JSON), the\n`json:\"-\"` field appears in the output map under the key `\"-\"`.\n\n```go\npackage main\n\nimport (\n    \"encoding/json\"\n    \"fmt\"\n    \"reflect\"\n\n    \"github.com/google/cel-go/cel\"\n    \"github.com/google/cel-go/ext\"\n\n    structpb \"google.golang.org/protobuf/types/known/structpb\"\n)\n\ntype AuthCtxConv struct {\n    UserID string `json:\"userId\"`\n    Secret string `json:\"-\"` // should never appear in JSON output\n}\n\ntype ReqConv struct{ Auth AuthCtxConv `json:\"auth\"` }\n\nfunc main() {\n    env, _ := cel.NewEnv(\n        ext.NativeTypes(reflect.TypeOf(ReqConv{}), ext.ParseStructTag(\"json\")),\n        cel.Variable(\"req\", cel.ObjectType(\"main.ReqConv\")),\n    )\n\n    ast, _ := env.Compile(`req.auth`)\n    prg, _ := env.Program(ast)\n    out, _, _ := prg.Eval(map[string]any{\n        \"req\": ReqConv{Auth: AuthCtxConv{UserID: \"alice\", Secret: \"sk-live-s3cr3t\"}},\n    })\n\n    jsonStructType := reflect.TypeOf(\u0026structpb.Struct{})\n    raw, _ := out.ConvertToNative(jsonStructType)\n\n    st := raw.(*structpb.Struct)\n    b, _ := json.MarshalIndent(st.AsMap(), \"\", \"  \")\n    fmt.Printf(\"ConvertToNative(jsonStructType) output:\\n%s\\n\", b)\n    fmt.Printf(\"\\nDirect field access via \\\"-\\\" key present: %v\\n\", st.Fields[\"-\"] != nil)\n    if v, ok := st.Fields[\"-\"]; ok {\n        fmt.Printf(\"Value: %s\\n\", v.GetStringValue())\n    }\n}\n```\n\nRunning the PoC above produces:\n\n```\nConvertToNative(jsonStructType) output:\n{\n  \"-\": \"sk-live-s3cr3t\",\n  \"userId\": \"alice\"\n}\n\nDirect field access via \"-\" key present: true\nValue: sk-live-s3cr3t\n```\n\nThe `\"-\"` key is present in the serialised Protobuf struct alongside `userId`.\nAny system that converts a CEL evaluation result to JSON (e.g. via `structpb.Struct`) will include the secret in the output, regardless of whether the `dyn()[\"-\"]` indexing path is used.\n\n## Impact\n\nAny user who can submit CEL expressions to an application that uses `ext.NativeTypes(ParseStructTag(\"json\"))` can read struct fields that the developer explicitly marked `json:\"-\"` to keep out of serialised output. By writing `dyn(obj)[\"-\"]`, the attacker retrieves the raw Go field value, typically a secret, internal token, or private identifier, with no compile-time or runtime error. Because `newNativeTypes` silently registers every nested struct reachable from the root type, the attacker may also reach secrets in dependency types the developer never intended to expose to CEL.\n\n## Remediation\n\nDo not treat `json:\"-\"` as a CEL field named `\"-\"`. Model it as an explicit skipped field, not as an empty string field name.\n\nUpdate the struct-tag parsing path so exact `json:\"-\"` returns “skip this field”, while `json:\"-,\"` continues to mean the literal field name `\"-\"`, matching `encoding/json` semantics.\n\nApply that skip decision consistently anywhere native fields are exposed or resolved:\n\n- duplicate-name validation in `newNativeType`\n- field enumeration in `FindStructFieldNames`\n- field type lookup in `FindStructFieldType`\n- runtime lookup in `fieldByName` / `hasField`\n- object construction in `NewValue`\n- JSON conversion in `ConvertToNative(jsonStructType)`\n\nApply the same omit handling for `xml:\"-\"`, `yaml:\"-\"`, and `bson:\"-\"` where `ParseStructTag` is used.",
           "Severity": "MEDIUM",
@@ -3878,15 +3878,15 @@
           "InstalledVersion": "v0.56.0",
           "Status": "affected",
           "Layer": {
-            "Digest": "sha256:7616671c1ba7ef6770b93347a3cc3139ec99fb80a618f677f3841d3fcd0e0a2a",
-            "DiffID": "sha256:ad374b06167ad0ab1964378c575157ca677052682da720705fdca69d7d6b89df"
+            "Digest": "sha256:af9afd473347a58bc0b36a1e97f58525c67d6fc9b1183f4b365d42d81eaf101b",
+            "DiffID": "sha256:4afea33a42021e196368b111d2b8410a16694e22d1adcb342d8d9ea0708f5f68"
           },
           "DataSource": {
             "ID": "govulndb",
             "Name": "The Go Vulnerability Database",
             "URL": "https://pkg.go.dev/vuln/"
           },
-          "Fingerprint": "sha256:5440560773252ed51553030186f22cc861da6c13dc874fb3325ee7d71f0c6adf",
+          "Fingerprint": "sha256:0a73b6520ab25bb64c096ca958d9997c7fd8d518aa066164b4b80f561c329b5c",
           "Title": "The golang.org/x/crypto/openpgp package is unmaintained, unsafe by design, and has known security issues",
           "Description": "The golang.org/x/crypto/openpgp package is unsafe by design, has numerous known security issues, is not maintained, and should not be used.\n\nIf you are required to interoperate with OpenPGP systems and need a maintained package, consider github.com/ProtonMail/go-crypto/openpgp which is a maintained fork that aims to be a drop-in replacement for this package.",
           "Severity": "UNKNOWN",

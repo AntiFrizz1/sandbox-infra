@@ -1,5 +1,5 @@
 {
- "created_at": "2026-09-25T19:48:44.831369+00:00",
+ "created_at": "2026-09-26T12:01:49.848456+00:00",
  "base_commit": "c73474823c27820a29541bb691dfe3f48908322c",
  "source_commit": null,
  "source_state": "candidates built from the files committed with this manifest on codex/security-remediation; source_commit is recorded when the candidate is approved",
@@ -22,7 +22,7 @@
  },
  "artifacts": {
   "caddy": {
-   "image_id": "sha256:58ee8a6a3017638c286ebbe4b9abe4873d3115b04680714bb6f9d9b99ddd56f6",
+   "image_id": "sha256:97af11bec2f7995be693bc4184786dd0f24cb476c6efd446555271e5369a8d39",
    "local_repo_digests": [
     "sandbox-security-caddy@sha256:58ee8a6a3017638c286ebbe4b9abe4873d3115b04680714bb6f9d9b99ddd56f6"
    ],
@@ -35,11 +35,17 @@
    "unique_vulnerability_ids": 2,
    "scan": {
     "file": "caddy.scan.json",
-    "sha256": "91533049f7420f52e7bc31bd4857010961ff52c42c8619b7eddf923007891902"
+    "sha256": "75949eb541207d410e8d1052c6293ad913851f50db8182652e59f39966320fe3"
    },
    "sbom": {
     "file": "caddy.sbom.cdx.json",
-    "sha256": "03648b44170ceaf5c925932b8a1d7a762e49d5e9d44473b27acd5a6c1ef74d68"
+    "sha256": "d0b70d397a10abcb9d685a82530621bae74cab324010702aef53894ced87ffde"
+   },
+   "distribution": {
+    "type": "archive",
+    "file": "caddy.tar",
+    "sha256": "c79ad6dd40d3dd469773e301a9bde333d38b0979bc8fdeba6a0c6ef40fcdd698",
+    "image_id": "sha256:97af11bec2f7995be693bc4184786dd0f24cb476c6efd446555271e5369a8d39"
    }
   },
   "worker": {
@@ -59,11 +65,17 @@
    "unique_vulnerability_ids": 2365,
    "scan": {
     "file": "worker.scan.json.gz",
-    "sha256": "3c15ee74cf411b7105ab63b8bf35d9205953b0df0cc0ed3fbc6a8c2fef3f3991"
+    "sha256": "779c3468e75d8746eb4228e4baf3ada03e6604b6e177e4bb0b2df59581f9189d"
    },
    "sbom": {
-    "file": "worker.sbom.cdx.json.gz",
-    "sha256": "494df526cb27870fc32e5746368290ba150b1fba3adfc75edf10136ac85c0b57"
+    "file": "worker.sbom.cdx.json",
+    "sha256": "8daaa98322e3884fd0b1b08ded2609fa389e6d76c40d5d4bb2ddf792acf05242"
+   },
+   "distribution": {
+    "type": "archive",
+    "file": "worker.tar",
+    "sha256": "c12cf49225073938ceeb8a25952b52131000da6c2543474b3f03583b99253d1b",
+    "image_id": "sha256:1b565225eb67546d753885a451f454cbaf081e88b9b4108bd912c5a2c2f269bc"
    }
   }
  },
