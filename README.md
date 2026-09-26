@@ -5,10 +5,12 @@ post-receive хук и Caddy с автоматическим TLS (DNS-01, Timewe
 
 ## Security remediation
 
-Текущая ветка меняет совместимость: host Compose отключён, Node запускается
-только в worker по root-owned политике. Public Caddy разделён с controller;
-при обновлении требуется миграция конфигурации и сохранение certificate volumes.
-Это локально проверенный кандидат, на действующий VPS он ещё не применён.
+Текущая ветка меняет совместимость: Node-проекты собираются только в
+изолированном worker, а Docker-проекты запускаются только по root-политике и
+после проверки compose-файла — без политики проект не деплоится. Публичный
+Caddy отделён от controller с Docker socket; при обновлении нужны перенос
+Caddyfile в `config/` и сохранение томов с сертификатами. Это локально
+проверенный кандидат, на действующий VPS он ещё не применён.
 
 Статус замечаний и результаты — [SECURITY-REMEDIATION-STATUS.md](docs/SECURITY-REMEDIATION-STATUS.md).
 Обязательная инструкция применения и отката — [SECURITY-RUNBOOK.md](docs/SECURITY-RUNBOOK.md).
@@ -20,8 +22,8 @@ post-receive хук и Caddy с автоматическим TLS (DNS-01, Timewe
 ```
 bootstrap.sh          — разовая установка на чистый VPS
 update-infra.sh       — обновление уже установленной инфраструктуры
-examples/             — .sandbox.conf для статики, Vite и Docker; root-политики
-                        worker-policy.conf и compose-policy.conf
+examples/             — .sandbox.conf для статики, Vite, Docker и старой раскладки;
+                        root-политики worker-policy.conf и compose-policy.conf
 tests/                — тесты (bash tests/run.sh) и обязательные integration-скрипты
 scripts/check-release.py — release gate по манифесту образов и сканам
 docs/
@@ -47,6 +49,7 @@ deploy/
   lint-compose.py        — проверка compose-модели по белому списку
   bounded-log.py         — лог деплоя с ограничением размера
   new-app.sh             — создание нового bare-репозитория на VPS
+  redeploy-app.sh        — пересборка текущей main без нового коммита
   stop-app.sh            — временная остановка проекта
   rollback-app.sh        — откат на предыдущий релиз без пересборки
   status-app.sh          — состояние проекта, проверка исхода деплоя
@@ -56,6 +59,11 @@ deploy/
   repair-permissions.sh  — исправление прав закрытого состояния
   remove-app.sh          — полное удаление проекта
   migrate.sh             — перевод старой раскладки на новую
+  maintenance.sh         — ежедневная очистка и проверка места (по таймеру)
+  firewall.sh            — запрет доступа из контейнеров к хосту и частным сетям
+  userns.sh              — включение userns-remap и перенос томов
+  harden-host.sh         — автообновления и SSH только по ключу
+  systemd/               — sandbox-maintenance.{service,timer}, sandbox-firewall.service
 client/
   sandbox-deploy           — локальный интерактивный клиент (см. ниже)
 ```
@@ -68,12 +76,22 @@ scp -r sandbox-infra root@<VPS-IP>:/root/
 ssh root@<VPS-IP>
 cd /root/sandbox-infra
 chmod +x bootstrap.sh
-SANDBOX_CADDY_IMAGE='<approved-registry-image>@sha256:<approved-digest>' ./bootstrap.sh
+SANDBOX_CADDY_IMAGE='<registry>/<image>@sha256:<digest>' ./bootstrap.sh
 ```
+
+Образ Caddy на VPS не собирается: bootstrap делает `docker pull` по digest,
+поэтому собранный и проверенный образ должен лежать в registry, доступном с
+VPS (см. `docs/SECURITY-RUNBOOK.md`).
+
+Кроме Docker, каталогов, сетей `sandbox_net`/`sandbox_build` и Caddy, bootstrap
+на чистом Docker включает userns-remap, ставит таймер обслуживания и
+firewall-юнит, включает автообновления и — если у root уже есть SSH-ключ —
+отключает вход по паролю. Подробнее — в «Защита хоста от взломанного проекта».
 
 После этого вручную:
 
-1. В `/srv/caddy/config/Caddyfile` замени `sandbox.example.com` на свой домен.
+1. В `/srv/caddy/config/Caddyfile` и `/srv/sandbox.conf` замени
+   `sandbox.example.com` на свой домен.
 2. В `/srv/caddy/.env` впиши `TIMEWEB_API_TOKEN` (Timeweb Cloud → API-ключи).
 3. Перезапусти Caddy:
    ```bash
@@ -85,6 +103,10 @@ SANDBOX_CADDY_IMAGE='<approved-registry-image>@sha256:<approved-digest>' ./boots
    A   sandbox       -> <IP VPS>   (отдельная запись, wildcard её не покрывает)
    ```
 5. Добавь свой публичный SSH-ключ в `/home/deploy/.ssh/authorized_keys`.
+6. Если bootstrap сообщил, что у root нет ключа: добавь ключ в
+   `/root/.ssh/authorized_keys` и запусти `/srv/deploy/harden-host.sh`.
+7. Для Node- и Docker-проектов положи root-политики в
+   `/etc/sandbox/projects/<name>.conf` (см. «Как деплоится каждый тип проекта»).
 
 ## Обновление инфраструктуры
 
@@ -99,8 +121,13 @@ sudo ./update-infra.sh
 
 Он переносит домен и email из действующего `Caddyfile` в новый шаблон,
 показывает diff, делает бэкап в `/root/sandbox-backups/`, прогоняет
-`caddy validate` и откатывается, если проверка не прошла. `.env`, состояние
-проектов, релизы и bare-репозитории не затрагиваются.
+`caddy validate` и откатывается, если проверка не прошла. Скрипты в
+`/srv/deploy` ставятся от root, systemd-юниты обслуживания и firewall
+обновляются и включаются. `.env`, состояние проектов, релизы и
+bare-репозитории не затрагиваются. Новый `docker-compose.yml` Caddy ставится
+только после переноса Caddyfile в `/srv/caddy/config/` по runbook.
+userns-remap и закалку хоста `update-infra` сам не включает: на работающем
+VPS это делается отдельно (`userns.sh`, `harden-host.sh`, runbook).
 
 Флаги `--scripts-only` и `--caddy-only` обновляют части по отдельности.
 
@@ -113,14 +140,18 @@ sudo ./update-infra.sh
 bash tests/run.sh
 ```
 
-Shell-тестам нужны bash, git, rsync, coreutils и flock. Они работают во временных
-каталогах — реальный `/srv` не трогают. ShellCheck запускается
-автоматически, а если его нет в системе — через `koalaman/shellcheck` в
-docker. Часть тестов поднимает настоящий Caddy в контейнере и проверяет
-реальные HTTP-ответы; без docker эти проверки пропускаются. Дополнительные
-контейнерные тесты проверяют права после миграции от root и сохранение
-Docker-маршрутов при перезапуске прокси. При первом запуске нужны загрузки
-образов Debian и caddy-docker-proxy.
+Тестам нужны bash, git, rsync, coreutils, flock, python3 с PyYAML и
+docker compose. Они работают во временных каталогах — реальный `/srv` не
+трогают. ShellCheck запускается автоматически, а если его нет в системе —
+через `koalaman/shellcheck` в docker.
+
+Docker-тесты поднимают настоящий Caddy и проверяют HTTP-ответы, права после
+миграции от root, compose-политику на реальном контейнере. Firewall, закалка
+хоста и userns-remap проверяются в одноразовых контейнерах (в том числе
+privileged и docker-in-docker): iptables, sshd и настройки Docker этой машины
+не меняются, её кеш сборки не чистится. Без docker эти проверки
+пропускаются. При первом запуске скачиваются образы Debian, Caddy и
+`docker:28-dind`.
 
 ## Создание нового проекта
 
@@ -156,7 +187,8 @@ Docker-маршрутов при перезапуске прокси. При п�
 Повторная сборка того же коммита получает ID `<sha>.<suffix>`; предыдущий
 каталог остаётся неизменным. `rollback --list` показывает полные ID сборок.
 
-Блокировки находятся в `/srv/state/.locks/<app>.lock`. Эти файлы сохраняются
+Блокировки находятся в `/srv/state/.locks/<app>.lock`, общая блокировка
+конфигурации Caddy — в `/srv/state/.locks/.caddy.lock`. Эти файлы сохраняются
 при удалении проекта, чтобы ожидающие процессы продолжали использовать
 одну блокировку. При обновлении старой версии нужно дождаться завершения
 всех операций: старый и новый пути блокировки нельзя использовать одновременно.
@@ -164,12 +196,18 @@ Docker-маршрутов при перезапуске прокси. При п�
 Состояние проекта на сервере лежит в `/srv/state/<app>/`:
 
 ```
-config          серверный конфиг (если нет .sandbox.conf в репозитории)
-env             серверные секреты, подкладываются в сборку
-deploys.tsv     история: время, ветка, sha, исход, длительность
-releases.tsv    порядок успешных релизов
-logs/<sha>.log  полный лог деплоя конкретного коммита
+config                 серверный конфиг (если нет .sandbox.conf в репозитории)
+env                    runtime-секреты Docker-проекта: копируются в его .env и
+                       служат единственным источником интерполяции compose
+build-env              секреты, которые получает фаза build в worker (Node)
+deploys.tsv            история: время, ветка, sha, исход, длительность
+releases.tsv           порядок успешных релизов
+docker-active-sha      коммит, запущенный в Docker-проекте
+compose.override.json  серверные лимиты и ограничения для compose
+logs/<sha>.log         лог деплоя конкретного коммита (до 1 MiB)
 ```
+
+Все эти файлы закрыты (каталоги 0700, файлы 0600).
 
 ## Остановка и удаление проекта
 
@@ -178,7 +216,8 @@ logs/<sha>.log  полный лог деплоя конкретного комм
 /srv/deploy/remove-app.sh myapp   # удалить полностью и необратимо
 ```
 
-`stop-app.sh` останавливает Docker-контейнеры (`docker compose down`) либо
+`stop-app.sh` останавливает Docker-контейнеры (`docker compose -p <app> down`,
+по имени проекта, не читая compose-файл) либо
 снимает ссылку `current` — сами релизы при этом сохраняются, поэтому проект
 можно вернуть откатом, не дожидаясь пересборки. Bare-репозиторий не
 трогается. Для запуска без нового коммита используй `sandbox-deploy redeploy myapp`: повторный push неизменённой ветки не запускает хук.
@@ -253,7 +292,8 @@ publish_dir=public        # что именно публиковать; по у�
                           # статики и dist/ для node-сборок
 build_cmd=npm run build   # только для type=node
 spa=false                 # true включает fallback на index.html
-health_url=               # необязательный URL проверки готовности (docker)
+health_url=               # необязательно, docker: https://<app>.<домен>/…
+                          # (порты не публикуются, проверка идёт через Caddy)
 ```
 
 ### SPA-режим
@@ -278,12 +318,17 @@ Caddyfile использовать нельзя: в нём нет сгенери
 не запущен, правила остаются на диске и подхватятся при следующем старте.
 
 Публикуется **только** `publish_dir`, а не весь репозиторий. Это защищает от
-случайной отдачи наружу исходников и серверных файлов. Симлинки, уводящие за
-пределы публикуемого каталога, отвергаются, и деплой падает с ошибкой.
+случайной отдачи наружу исходников и серверных файлов. Даже внутри него не
+публикуются dot-файлы (кроме `.well-known`), `.env*`, `*.env`, ключи
+(`*.pem`, `*.key`, `id_rsa*`, `id_ed25519*`), `.sandbox.conf` и корневой
+`node_modules`. Caddy независимо от этого отвечает 403 на dot-пути, `.env`
+и ключи, в том числе вложенные и URL-encoded. Симлинки,
+уводящие за пределы публикуемого каталога, отвергаются, и деплой падает с
+ошибкой.
 
 ### 1. Статика (html/js без фреймворков)
-Положи файлы сайта в `public/`. Хук опубликует этот каталог в
-`/srv/sites/<app>/`, откуда раздаёт Caddy. Доступен на
+Положи файлы сайта в `public/`. Хук опубликует этот каталог как новый
+релиз в `/srv/sites/<app>/releases/` и переключит на него `current`. Доступен на
 `<app>.sandbox.<домен>` сразу после пуша.
 
 Если файлы лежат в корне репозитория, нужен явный `publish_dir=.`
@@ -294,7 +339,8 @@ Caddyfile использовать нельзя: в нём нет сгенери
 
 Сначала администратор устанавливает `examples/worker-policy.conf` в
 `/etc/sandbox/projects/<name>.conf` от root и указывает проверенный worker
-image digest. Образ загружается заранее. Сборка идёт в два контейнера:
+image digest. Образ загружается заранее. Без политики Node-проект не
+собирается. Сборка идёт в два контейнера:
 
 1. **fetch** — сеть `fetch_network` из политики (обычно `sandbox_build`),
    `npm ci --ignore-scripts`: npm только скачивает и распаковывает пакеты,
@@ -422,7 +468,8 @@ networks:
 
 ## Пока не реализовано (отложено)
 
-- Не-HTTP TCP-протоколы (нужен `caddy-l4` или прямой проброс портов).
+- Не-HTTP TCP-протоколы (нужен `caddy-l4`; публикация портов проектами
+  запрещена compose-политикой).
 - Процессы без Docker через systemd unit-файлы.
 
 Оба легко добавляются как дополнительные ветки в `deploy/hook.sh`, когда
