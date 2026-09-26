@@ -7,12 +7,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=deploy/lib/common.sh
 source "$SCRIPT_DIR/deploy/lib/common.sh"
 
-# A release is built/scanned once elsewhere; never rebuilt on the VPS.
-[[ ${SANDBOX_CADDY_IMAGE:-} =~ ^[^[:space:]]+@sha256:[a-f0-9]{64}$ ]] || {
-    echo 'Set SANDBOX_CADDY_IMAGE to the approved release digest (see docs/SECURITY-RUNBOOK.md)' >&2
-    exit 1
-}
-export SANDBOX_CADDY_IMAGE
+# Образ Caddy собирается и проверяется один раз на машине сборки, на VPS
+# не пересобирается. Два способа доставки:
+#   SANDBOX_CADDY_ARCHIVE=caddy.tar SANDBOX_CADDY_ARCHIVE_SHA256=<sha256>
+#       архив из scripts/export-image.sh; контрольная сумма проверяется;
+#   SANDBOX_CADDY_IMAGE=<registry>/<image>@sha256:<digest>
+#       образ в registry, `docker pull` по digest.
+if [[ -n ${SANDBOX_CADDY_ARCHIVE:-} ]]; then
+    [[ -f $SANDBOX_CADDY_ARCHIVE && ${SANDBOX_CADDY_ARCHIVE_SHA256:-} =~ ^[a-f0-9]{64}$ ]] \
+        || die 'SANDBOX_CADDY_ARCHIVE должен быть файлом, SANDBOX_CADDY_ARCHIVE_SHA256 — его SHA-256'
+    SANDBOX_CADDY_ARCHIVE=$(readlink -f -- "$SANDBOX_CADDY_ARCHIVE")
+elif [[ ! ${SANDBOX_CADDY_IMAGE:-} =~ ^[^[:space:]@]+@sha256:[a-f0-9]{64}$ ]]; then
+    die 'Нужен SANDBOX_CADDY_ARCHIVE + SANDBOX_CADDY_ARCHIVE_SHA256 или SANDBOX_CADDY_IMAGE=<образ>@sha256:<digest> (см. README)'
+fi
 echo "==> Sandbox infrastructure bootstrap"
 
 # --- 0. Deploy-пользователь ---
@@ -137,10 +144,16 @@ fi
 chown root:deploy /srv/caddy/.env
 chmod 640 /srv/caddy/.env
 
-echo "==> Получаю утверждённый образ Caddy"
-docker pull "$SANDBOX_CADDY_IMAGE"
-set_env_value /srv/caddy/.env SANDBOX_CADDY_IMAGE "$SANDBOX_CADDY_IMAGE" \
-    || { echo "не удалось записать SANDBOX_CADDY_IMAGE в /srv/caddy/.env" >&2; exit 1; }
+# После userns-remap (шаг 2a): у remap свой каталог данных Docker.
+if [[ -n ${SANDBOX_CADDY_ARCHIVE:-} ]]; then
+    echo "==> Загружаю проверенный архив образа Caddy"
+    bash "$SCRIPT_DIR/deploy/load-image.sh" "$SANDBOX_CADDY_ARCHIVE" "$SANDBOX_CADDY_ARCHIVE_SHA256" --caddy >/dev/null
+else
+    echo "==> Получаю утверждённый образ Caddy"
+    docker pull "$SANDBOX_CADDY_IMAGE"
+    set_env_value /srv/caddy/.env SANDBOX_CADDY_IMAGE "$SANDBOX_CADDY_IMAGE" \
+        || { echo "не удалось записать SANDBOX_CADDY_IMAGE в /srv/caddy/.env" >&2; exit 1; }
+fi
 
 echo "==> Запускаю Caddy"
 cd /srv/caddy

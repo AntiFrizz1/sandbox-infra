@@ -41,7 +41,7 @@ load_execution_policy() {
     RUN_FETCH_NETWORK=$(read_conf_value "$path" fetch_network || echo none)
     RUN_NPM_REGISTRY=$(read_conf_value "$path" npm_registry || echo https://registry.npmjs.org/)
     [[ $RUN_PROFILE == worker ]] || { warn "[$name] execution policy profile must be worker"; return 1; }
-    [[ $RUN_IMAGE =~ ^[^[:space:]]+@sha256:[a-f0-9]{64}$ ]] || return 1
+    is_pinned_image "$RUN_IMAGE" || { warn "[$name] image must be repo@sha256:… or a local sha256:… ID"; return 1; }
     local n
     for n in "$RUN_TIMEOUT" "$RUN_MEMORY" "$RUN_PIDS" "$RUN_CPUS" "$RUN_OUTPUT_MB"; do
         [[ $n =~ ^[1-9][0-9]{0,5}$ ]] || return 1

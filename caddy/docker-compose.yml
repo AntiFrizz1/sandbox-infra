@@ -1,4 +1,5 @@
-# Set SANDBOX_CADDY_IMAGE to an approved registry digest in the private .env.
+# SANDBOX_CADDY_IMAGE in the private .env: a registry digest, or the image ID
+# written by deploy/load-image.sh --caddy after verifying an archive.
 # Migration from the old layout requires config/Caddyfile (see security runbook).
 x-common: &common
   image: ${SANDBOX_CADDY_IMAGE:?approved digest required}

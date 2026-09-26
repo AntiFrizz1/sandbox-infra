@@ -255,3 +255,11 @@ install_host_units() {
         && systemctl enable sandbox-firewall.service \
         && systemctl restart sandbox-firewall.service
 }
+
+# is_pinned_image <ref>
+# A runtime image must be immutable: either a registry reference by digest
+# (repo@sha256:...) or the local image ID (sha256:...) that load-image.sh
+# prints after verifying an archive. Tags are refused: they can be moved.
+is_pinned_image() {
+    [[ ${1-} =~ ^[^[:space:]@]+@sha256:[a-f0-9]{64}$ || ${1-} =~ ^sha256:[a-f0-9]{64}$ ]]
+}

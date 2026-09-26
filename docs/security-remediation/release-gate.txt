@@ -1,4 +1,4 @@
 BLOCKED: candidate is not approved
 BLOCKED: final source commit is not recorded
-BLOCKED: caddy: distribution digest not verified in release registry
-BLOCKED: worker: distribution digest not verified in release registry
+BLOCKED: caddy: no verified distribution (registry digest or export-image.sh archive)
+BLOCKED: worker: no verified distribution (registry digest or export-image.sh archive)

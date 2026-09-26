@@ -11,6 +11,7 @@ import datetime as dt
 import gzip
 import hashlib
 import json
+import re
 from pathlib import Path
 import sys
 
@@ -84,8 +85,18 @@ for name, artifact in manifest['artifacts'].items():
                 errors.append(f"{ref}: exception {', '.join(exception['problems'])}")
     if blocking:
         errors.append(f'{name}: {blocking} unresolved HIGH/CRITICAL findings without exception')
-    if not artifact.get('registry_digest_verified'):
-        errors.append(f'{name}: distribution digest not verified in release registry')
+    # The image reaches the server either by a verified registry digest or as
+    # an archive whose checksum load-image.sh verifies; the archive must come
+    # from the scanned image.
+    dist = artifact.get('distribution') or {}
+    archive_ok = (dist.get('type') == 'archive'
+                  and re.fullmatch(r'[a-f0-9]{64}', str(dist.get('sha256', '')))
+                  and dist.get('image_id') == artifact['image_id'])
+    if not artifact.get('registry_digest_verified') and not archive_ok:
+        if dist.get('type') == 'archive':
+            errors.append(f'{name}: archive does not come from the scanned image')
+        else:
+            errors.append(f'{name}: no verified distribution (registry digest or export-image.sh archive)')
 
 for (name, vid, package), exception in exceptions.items():
     if not exception['used']:

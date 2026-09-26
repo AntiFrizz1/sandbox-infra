@@ -80,4 +80,23 @@ make_evidence "$SB/stale" '[]' "$(exc CVE-2026-9 linux-libc-dev "$(day '+30 days
 out=$(gate "$SB/stale" 2>&1)
 assert_ok 'unused exception only warns' gate "$SB/stale"
 assert_ok 'unused exception is reported' grep -q 'unused exception' <<< "$out"
+echo "== доставка архивом =="
+make_evidence "$SB/archive" '[]'
+set_dist() {  # set_dist <dir> <python expression over artifact a>
+    python3 - "$1" "$2" <<'EXPR'
+import json, pathlib, sys
+p = pathlib.Path(sys.argv[1]) / 'release-manifest.json'
+d = json.loads(p.read_text()); a = d['artifacts']['worker']
+a['registry_digest_verified'] = False
+a['distribution'] = eval(sys.argv[2])
+p.write_text(json.dumps(d))
+EXPR
+}
+set_dist "$SB/archive" "{'type': 'archive', 'sha256': 'b' * 64, 'image_id': a['image_id']}"
+assert_ok 'archive of the scanned image accepted without a registry' gate "$SB/archive"
+set_dist "$SB/archive" "{'type': 'archive', 'sha256': 'b' * 64, 'image_id': 'sha256:' + 'c' * 64}"
+out=$(gate "$SB/archive" 2>&1)
+assert_ok 'archive of another image refused' grep -q 'does not come from the scanned image' <<< "$out"
+set_dist "$SB/archive" "{}"
+assert_fail 'no registry and no archive refused' gate "$SB/archive"
 finish

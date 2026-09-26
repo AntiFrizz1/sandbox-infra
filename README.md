@@ -26,6 +26,8 @@ examples/             — .sandbox.conf для статики, Vite, Docker и �
                         root-политики worker-policy.conf и compose-policy.conf
 tests/                — тесты (bash tests/run.sh) и обязательные integration-скрипты
 scripts/check-release.py — release gate по манифесту образов и сканам
+scripts/scan-image.sh    — скан Trivy и SBOM Syft образа в манифест релиза
+scripts/export-image.sh  — архив проверенного образа для переноса на VPS
 docs/
   MIGRATION.md           — перевод уже развёрнутого VPS на новую раскладку
   MIGRATION-LEGACY.md    — подробный пофазный план со старой раскладки
@@ -59,6 +61,7 @@ deploy/
   repair-permissions.sh  — исправление прав закрытого состояния
   remove-app.sh          — полное удаление проекта
   migrate.sh             — перевод старой раскладки на новую
+  load-image.sh          — загрузка образа из архива с проверкой SHA-256
   maintenance.sh         — ежедневная очистка и проверка места (по таймеру)
   firewall.sh            — запрет доступа из контейнеров к хосту и частным сетям
   userns.sh              — включение userns-remap и перенос томов
@@ -70,18 +73,42 @@ client/
 
 ## Установка на чистый VPS
 
+Образы Caddy и worker на VPS не собираются: их собирают и сканируют один
+раз на своей машине, а на сервер переносят архивом с проверкой SHA-256.
+Registry не нужен.
+
+На своей машине, в клоне репозитория:
+
 ```bash
-git clone <URL-этого-репозитория> sandbox-infra
-scp -r sandbox-infra root@<VPS-IP>:/root/
-ssh root@<VPS-IP>
-cd /root/sandbox-infra
-chmod +x bootstrap.sh
-SANDBOX_CADDY_IMAGE='<registry>/<image>@sha256:<digest>' ./bootstrap.sh
+docker build -t sandbox-caddy:candidate caddy/
+docker build -t sandbox-worker:candidate worker/
+scripts/scan-image.sh sandbox-caddy:candidate caddy     # Trivy + SBOM в манифест
+scripts/scan-image.sh sandbox-worker:candidate worker
+python3 scripts/check-release.py                        # что ещё мешает выпуску
+scripts/export-image.sh sandbox-caddy:candidate caddy.tar --artifact caddy
+scripts/export-image.sh sandbox-worker:candidate worker.tar --artifact worker
 ```
 
-Образ Caddy на VPS не собирается: bootstrap делает `docker pull` по digest,
-поэтому собранный и проверенный образ должен лежать в registry, доступном с
-VPS (см. `docs/SECURITY-RUNBOOK.md`).
+`check-release.py` перечислит находки HIGH/CRITICAL, которые нужно исправить
+или оформить исключением в `docs/security-remediation/exceptions.json`, и
+напомнит про одобрение. `export-image.sh` печатает SHA-256 архива; с
+`--artifact` он откажется экспортировать образ, если это не тот образ, что
+сканировался, и запишет архив в манифест.
+
+На VPS:
+
+```bash
+git clone <URL-этого-репозитория> sandbox-infra
+scp -r sandbox-infra caddy.tar worker.tar root@<VPS-IP>:/root/
+ssh root@<VPS-IP>
+cd /root/sandbox-infra
+SANDBOX_CADDY_ARCHIVE=/root/caddy.tar SANDBOX_CADDY_ARCHIVE_SHA256=<sha256> ./bootstrap.sh
+/srv/deploy/load-image.sh /root/worker.tar <sha256>   # печатает sha256:… ID
+```
+
+ID worker из последней команды впиши в `image=` root-политик Node-проектов.
+Если образы всё же лежат в registry, вместо архива подойдёт
+`SANDBOX_CADDY_IMAGE='<registry>/<image>@sha256:<digest>' ./bootstrap.sh`.
 
 Кроме Docker, каталогов, сетей `sandbox_net`/`sandbox_build` и Caddy, bootstrap
 на чистом Docker включает userns-remap, ставит таймер обслуживания и

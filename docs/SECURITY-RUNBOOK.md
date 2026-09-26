@@ -40,7 +40,8 @@ scan, время обновления vulnerability DB и digest итогово�
 в манифест по checksum: одобрение относится ровно к этому набору.
 
 Pins пересматривать ежемесячно и сразу при security advisory. Для обновления
-собрать новый кандидат, проверить версии через registry/Go module checksum DB,
+собрать новый кандидат, `scripts/scan-image.sh <image> caddy|worker` (Trivy и
+Syft из образов по digest; сбрасывает одобрение и запись об архиве), проверить версии через registry/Go module checksum DB,
 повторить tests/SBOM/scan, одобрить digest и сохранить предыдущий одобренный
 артефакт. Обновление apt-пакетов ОС не блокируется package hold. Bootstrap
 использует подписанные репозитории дистрибутива, без curl|sh; пакет
@@ -101,9 +102,16 @@ image digest. Остановить новые deploy через SSH/post-receive
 
 ## Второй набор: прокси, worker, Docker-проекты
 
-1. Подготовить утверждённые Caddy/worker digest и SBOM/scan. В private
-   `/srv/caddy/.env` записать `SANDBOX_CADDY_IMAGE=<registry>@sha256:<digest>`.
-   Значение должно быть доступно Compose на последующих рестартах.
+1. Подготовить утверждённые образы Caddy/worker и их SBOM/scan. Без registry:
+   на машине сборки `scripts/export-image.sh <image> <file.tar> --artifact
+   caddy|worker` (откажет, если образ не тот, что сканировался, и запишет
+   архив в манифест), на VPS `/srv/deploy/load-image.sh <file.tar> <sha256>`
+   — проверяет контрольную сумму до `docker load` и печатает ID образа;
+   с `--caddy` записывает его в `SANDBOX_CADDY_IMAGE` в `/srv/caddy/.env`.
+   Грузить после включения userns-remap. ID на VPS может отличаться от ID
+   на машине сборки, если у Docker разные хранилища образов; связь между
+   ними — контрольная сумма архива. С registry — `SANDBOX_CADDY_IMAGE=
+   <registry>@sha256:<digest>` в том же `.env`.
 2. Под общим Caddy lock перенести Caddyfile в `/srv/caddy/config/Caddyfile`,
    config dir оставить root-owned, 0755; snippets — `/srv/caddy/spa.d`.
    Новый Compose монтирует каталог config read-only, **без .env**.

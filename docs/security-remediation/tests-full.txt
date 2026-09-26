@@ -281,6 +281,30 @@
 
   итого: 12 проверок, 0 провалов
 
+=== test_image_transfer.sh ===
+== закреплённая ссылка на образ ==
+  ok   registry digest accepted
+  ok   local image ID accepted
+  ok   tag refused
+  ok   malformed digest refused
+  ok   short ID refused
+== экспорт на машине сборки ==
+  ok   export refuses an image the scan does not cover
+  ok   printed checksum matches the archive
+  ok   distribution recorded in the manifest
+== загрузка на VPS ==
+  ok   image gone before loading
+  ok   wrong checksum refused
+  ok   nothing loaded after a refusal
+  ok   tampered archive refused
+  ok   verified archive loads the same image
+  ok   image present after loading
+  ok   Caddy .env points at the loaded ID
+  ok   other .env keys kept
+  ok   loaded ID is a valid worker image
+
+  итого: 17 проверок, 0 провалов
+
 === test_maintenance.sh ===
 == dry-run ничего не меняет ==
   ok   dry run leaves the tree unchanged
@@ -476,8 +500,12 @@
   ok   exceptions file changed after approval
   ok   unused exception only warns
   ok   unused exception is reported
+== доставка архивом ==
+  ok   archive of the scanned image accepted without a registry
+  ok   archive of another image refused
+  ok   no registry and no archive refused
 
-  итого: 14 проверок, 0 провалов
+  итого: 17 проверок, 0 провалов
 
 === test_remove_stop.sh ===
 == remove-app.sh: обход каталога ==
@@ -900,4 +928,4 @@
   ok   shellcheck чист
 
 ===============================
-ВСЕ ТЕСТЫ ПРОЙДЕНЫ (21 файлов)
+ВСЕ ТЕСТЫ ПРОЙДЕНЫ (22 файлов)
